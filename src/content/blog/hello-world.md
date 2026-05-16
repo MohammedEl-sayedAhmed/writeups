@@ -1,13 +1,11 @@
 ---
 title: 'Hello, world'
-description: 'First post — placeholder while the blog gets wired up.'
-pubDate: 'May 16 2026'
-
-# Cross-post fields read by .github/workflows/crosspost.yml.
-# published: false keeps the dev.to copy as a DRAFT for now — flip to true to publish.
-tags: 'meta'
+description: First post — placeholder while the blog gets wired up.
+pubDate: May 16 2026
+tags: meta
 canonical_url: 'https://mammar.pages.dev/blog/hello-world/'
 published: false
+id: 3684888
 ---
 
 This is a placeholder post.
