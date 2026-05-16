@@ -6,6 +6,7 @@ tags: 'linux, opensource, python, debugging'
 published: true
 canonical_url: 'https://mammar.pages.dev/blog/vdu-controls-philips-evnia-brightness-slider-fix/'
 id: 3685159
+date: '2026-05-16T21:11:26Z'
 ---
 
 I plugged a new monitor into my Kubuntu laptop last week. The brightness slider in the tray utility I use only had two settings: black, and almost-black. Not 0 to 100. Not a continuous gradient. Just two positions.
