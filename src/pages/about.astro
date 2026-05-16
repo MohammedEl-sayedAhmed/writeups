@@ -2,6 +2,7 @@
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
+import { AUTHOR_NAME, SOCIALS } from '../consts';
 ---
 
 <!doctype html>
@@ -15,13 +16,34 @@ import Header from '../components/Header.astro';
 	<body>
 		<Header />
 		<main>
-			<h1>About</h1>
-			<p>
-				I build software and write about it. Sometimes about the elegant parts,
-				sometimes about the messy ones — both tend to teach more than the polished
-				tutorials do.
-			</p>
+			<div class="container container--prose about">
+				<h1>About</h1>
+				<p class="lead">
+					I build software and write about it. Sometimes about the elegant parts,
+					sometimes about the messy ones — both tend to teach more than the polished
+					tutorials do.
+				</p>
+				<p>
+					{AUTHOR_NAME}. Find me on <a href={SOCIALS.github} target="_blank" rel="noopener"
+						>GitHub</a
+					> or <a href={SOCIALS.devto} target="_blank" rel="noopener">dev.to</a>. The blog
+					has an <a href={SOCIALS.rss}>RSS feed</a> if you prefer reading that way.
+				</p>
+			</div>
 		</main>
 		<Footer />
 	</body>
 </html>
+
+<style>
+	.about h1 {
+		font-size: var(--text-5xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-6);
+	}
+	.lead {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		max-width: 36rem;
+	}
+</style>

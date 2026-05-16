@@ -26,6 +26,9 @@ Thumbs.db
 *.swo
 *~
 
+# Serverless MCP scratch metadata
+.serverless/
+
 # Local scratch / drafts not meant to ship
 scratch/
 *.local.md

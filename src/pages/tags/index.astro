@@ -1,0 +1,112 @@
+---
+import { getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import Header from '../../components/Header.astro';
+import { SITE_TITLE } from '../../consts';
+
+const posts = await getCollection('blog');
+const counts = new Map<string, { label: string; count: number }>();
+for (const post of posts) {
+	const raw = post.data.tags;
+	if (!raw) continue;
+	const tags = raw
+		.split(',')
+		.map((t: string) => t.trim())
+		.filter(Boolean);
+	for (const tag of tags) {
+		const slug = tag.toLowerCase().replace(/\s+/g, '-');
+		const cur = counts.get(slug) ?? { label: tag, count: 0 };
+		cur.count += 1;
+		counts.set(slug, cur);
+	}
+}
+const sortedTags = [...counts.entries()].sort((a, b) =>
+	b[1].count - a[1].count || a[1].label.localeCompare(b[1].label),
+);
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead
+			title={`Tags · ${SITE_TITLE}`}
+			description="Browse writeups by tag."
+		/>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="container container--content">
+				<header class="page-head">
+					<h1>Tags</h1>
+					<p class="lead">Browse writeups by topic.</p>
+				</header>
+
+				<ul class="tag-cloud">
+					{
+						sortedTags.map(([slug, { label, count }]) => (
+							<li>
+								<a href={`/tags/${slug}/`}>
+									<span class="tag-label">{label}</span>
+									<span class="tag-count">{count}</span>
+								</a>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	.page-head {
+		margin-bottom: var(--space-12);
+	}
+	.page-head h1 {
+		font-size: var(--text-5xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-4);
+	}
+	.lead {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0;
+	}
+	.tag-cloud {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-3);
+	}
+	.tag-cloud a {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 8px 14px;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
+		color: var(--text);
+		background: var(--bg-subtle);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		text-decoration: none;
+		transition:
+			border-color var(--transition-fast),
+			background var(--transition-fast),
+			color var(--transition-fast);
+	}
+	.tag-cloud a:hover {
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+		color: var(--accent);
+	}
+	.tag-count {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+</style>

@@ -1,86 +1,579 @@
 ---
 import { Image } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
+import type { MarkdownHeading } from 'astro';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+import { AUTHOR_NAME, AUTHOR_URL, SOCIALS } from '../consts';
 
-type Props = CollectionEntry<'blog'>['data'];
+type ExtraProps = {
+	readingMinutes?: number;
+	prev?: { id: string; title: string } | null;
+	next?: { id: string; title: string } | null;
+	headings?: MarkdownHeading[];
+	slug?: string;
+};
 
-const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+type Props = CollectionEntry<'blog'>['data'] & ExtraProps;
+
+const {
+	title,
+	description,
+	pubDate,
+	updatedDate,
+	heroImage,
+	tags,
+	readingMinutes,
+	prev,
+	next,
+	headings = [],
+	slug,
+} = Astro.props as Props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImageUrl = slug ? `/og/${slug}.png` : undefined;
+
+const tagList = tags
+	? tags
+			.split(',')
+			.map((t) => t.trim())
+			.filter(Boolean)
+	: [];
+
+const slugifyTag = (t: string) => t.toLowerCase().replace(/\s+/g, '-');
+
+const jsonLd = {
+	'@context': 'https://schema.org',
+	'@type': 'BlogPosting',
+	headline: title,
+	description: description,
+	datePublished: pubDate.toISOString(),
+	dateModified: (updatedDate ?? pubDate).toISOString(),
+	author: { '@type': 'Person', name: AUTHOR_NAME, url: AUTHOR_URL },
+	mainEntityOfPage: { '@type': 'WebPage', '@id': canonical.toString() },
+	...(ogImageUrl ? { image: new URL(ogImageUrl, Astro.site).toString() } : {}),
+};
 ---
 
 <html lang="en">
 	<head>
-		<BaseHead title={title} description={description} />
-		<style>
-			main {
-				width: calc(100% - 2em);
-				max-width: 100%;
-				margin: 0;
-			}
-			.hero-image {
-				width: 100%;
-			}
-			.hero-image img {
-				display: block;
-				margin: 0 auto;
-				border-radius: 12px;
-				box-shadow: var(--box-shadow);
-			}
-			.prose {
-				width: 720px;
-				max-width: calc(100% - 2em);
-				margin: auto;
-				padding: 1em;
-				color: rgb(var(--gray-dark));
-			}
-			.title {
-				margin-bottom: 1em;
-				padding: 1em 0;
-				text-align: center;
-				line-height: 1;
-			}
-			.title h1 {
-				margin: 0 0 0.5em 0;
-			}
-			.date {
-				margin-bottom: 0.5em;
-				color: rgb(var(--gray));
-			}
-			.last-updated-on {
-				font-style: italic;
-			}
-		</style>
+		<BaseHead title={title} description={description} ogImageUrl={ogImageUrl} />
+		<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />
 	</head>
-
 	<body>
+		<div id="reading-progress" aria-hidden="true"></div>
 		<Header />
 		<main>
 			<article>
-				<div class="hero-image">
-					{heroImage && <Image width={1020} height={510} src={heroImage} alt="" />}
-				</div>
-				<div class="prose">
-					<div class="title">
-						<div class="date">
-							<FormattedDate date={pubDate} />
-							{
-								updatedDate && (
-									<div class="last-updated-on">
-										Last updated on <FormattedDate date={updatedDate} />
-									</div>
-								)
-							}
-						</div>
-						<h1>{title}</h1>
-						<hr />
+				<header class="article-head container container--prose">
+					<div class="meta-row">
+						<FormattedDate date={pubDate} />
+						{
+							readingMinutes && (
+								<>
+									<span class="dot" aria-hidden="true">·</span>
+									<span>{readingMinutes} min read</span>
+								</>
+							)
+						}
+						{
+							updatedDate && (
+								<>
+									<span class="dot" aria-hidden="true">·</span>
+									<span class="updated">
+										updated <FormattedDate date={updatedDate} />
+									</span>
+								</>
+							)
+						}
 					</div>
-					<slot />
+					<h1>{title}</h1>
+					<p class="description">{description}</p>
+					{
+						tagList.length > 0 && (
+							<ul class="tag-chips" aria-label="Tags">
+								{tagList.map((t) => (
+									<li>
+										<a href={`/tags/${slugifyTag(t)}/`}>{t}</a>
+									</li>
+								))}
+							</ul>
+						)
+					}
+				</header>
+
+				{
+					heroImage && (
+						<figure class="hero container container--content">
+							<Image width={1024} height={512} src={heroImage} alt="" />
+						</figure>
+					)
+				}
+
+				<div class="reading-area">
+					{
+						headings.length > 0 && (
+							<details class="toc-mobile">
+								<summary>Contents</summary>
+								<TableOfContents headings={headings} />
+							</details>
+						)
+					}
+
+					<div class="prose">
+						<slot />
+					</div>
+
+					{
+						headings.length > 0 && (
+							<aside class="toc-side" aria-label="Reading sidebar">
+								<div class="toc-sticky">
+									<p class="toc-label">Contents</p>
+									<TableOfContents headings={headings} />
+									<div class="reader-controls" aria-label="Reader settings">
+										<p class="reader-label">Text size</p>
+										<div class="size-buttons" role="group">
+											<button type="button" data-fs="s" aria-label="Small text">S</button>
+											<button type="button" data-fs="m" aria-label="Medium text" class="default">
+												M
+											</button>
+											<button type="button" data-fs="l" aria-label="Large text">L</button>
+											<button type="button" data-fs="xl" aria-label="Extra large text">
+												XL
+											</button>
+										</div>
+									</div>
+								</div>
+							</aside>
+						)
+					}
 				</div>
+
+				{
+					(prev || next) && (
+						<nav class="post-nav container container--content" aria-label="Post navigation">
+							{prev ? (
+								<a href={`/blog/${prev.id}/`} class="nav-card prev">
+									<span class="nav-label">← Previous</span>
+									<span class="nav-title">{prev.title}</span>
+								</a>
+							) : (
+								<span class="nav-spacer" aria-hidden="true" />
+							)}
+							{next ? (
+								<a href={`/blog/${next.id}/`} class="nav-card next">
+									<span class="nav-label">Next →</span>
+									<span class="nav-title">{next.title}</span>
+								</a>
+							) : (
+								<span class="nav-spacer" aria-hidden="true" />
+							)}
+						</nav>
+					)
+				}
+
+				<footer class="article-footer container container--prose">
+					<p class="byline">
+						Written by <a href={AUTHOR_URL}>{AUTHOR_NAME}</a>. Also on
+						<a href={SOCIALS.devto} target="_blank" rel="noopener">dev.to</a>
+						·
+						<a href="/blog">All writeups →</a>
+					</p>
+				</footer>
 			</article>
 		</main>
 		<Footer />
+
+		<script>
+			// Reading progress bar
+			const bar = document.getElementById('reading-progress');
+			const article = document.querySelector('article');
+			if (bar && article) {
+				const onScroll = () => {
+					const rect = article.getBoundingClientRect();
+					const total = rect.height - window.innerHeight;
+					const scrolled = Math.min(Math.max(-rect.top, 0), total);
+					const pct = total > 0 ? (scrolled / total) * 100 : 0;
+					bar.style.setProperty('--progress', pct + '%');
+				};
+				onScroll();
+				window.addEventListener('scroll', onScroll, { passive: true });
+				window.addEventListener('resize', onScroll);
+			}
+
+			// Copy-code buttons on every <pre> inside the article prose
+			document.querySelectorAll<HTMLPreElement>('.prose pre').forEach((pre) => {
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = 'copy-code';
+				btn.textContent = 'Copy';
+				btn.setAttribute('aria-label', 'Copy code to clipboard');
+				pre.appendChild(btn);
+				btn.addEventListener('click', async () => {
+					const code = pre.querySelector('code')?.textContent ?? pre.textContent ?? '';
+					try {
+						await navigator.clipboard.writeText(code);
+						btn.textContent = 'Copied!';
+						setTimeout(() => (btn.textContent = 'Copy'), 1500);
+					} catch (e) {
+						btn.textContent = 'Failed';
+						setTimeout(() => (btn.textContent = 'Copy'), 1500);
+					}
+				});
+			});
+
+			// Font-size control (S/M/L/XL) on this article
+			const sizeButtons = document.querySelectorAll<HTMLButtonElement>('.size-buttons button');
+			const applyFontSize = (size: string) => {
+				const root = document.documentElement;
+				if (size === 'm') root.removeAttribute('data-font-size');
+				else root.setAttribute('data-font-size', size);
+				sizeButtons.forEach((b) => b.classList.toggle('active', b.dataset.fs === size));
+				try {
+					localStorage.setItem('fontSize', size);
+				} catch (e) {}
+			};
+			// Initial sync: reflect any pre-existing setting in the buttons.
+			const current = document.documentElement.getAttribute('data-font-size') ?? 'm';
+			sizeButtons.forEach((b) => b.classList.toggle('active', b.dataset.fs === current));
+			sizeButtons.forEach((b) => {
+				b.addEventListener('click', () => applyFontSize(b.dataset.fs ?? 'm'));
+			});
+
+			// TOC active-section highlight via IntersectionObserver
+			const tocLinks = document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]');
+			if (tocLinks.length) {
+				const linkBySlug = new Map<string, HTMLAnchorElement>();
+				tocLinks.forEach((a) => {
+					const slug = a.dataset.tocLink!;
+					linkBySlug.set(slug, a);
+				});
+				const headingNodes = Array.from(linkBySlug.keys())
+					.map((slug) => document.getElementById(slug))
+					.filter((n): n is HTMLElement => !!n);
+				const setActive = (slug: string | null) => {
+					tocLinks.forEach((a) => a.classList.remove('active'));
+					if (slug) linkBySlug.get(slug)?.classList.add('active');
+				};
+				const observer = new IntersectionObserver(
+					(entries) => {
+						// Pick the topmost intersecting heading
+						const visible = entries
+							.filter((e) => e.isIntersecting)
+							.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+						if (visible[0]) setActive(visible[0].target.id);
+					},
+					{ rootMargin: '-80px 0px -70% 0px' },
+				);
+				headingNodes.forEach((n) => observer.observe(n));
+			}
+		</script>
 	</body>
 </html>
+
+<style>
+	#reading-progress {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 2px;
+		z-index: 100;
+		pointer-events: none;
+		background: transparent;
+		--progress: 0%;
+	}
+	#reading-progress::after {
+		content: '';
+		display: block;
+		height: 100%;
+		width: var(--progress);
+		background: var(--accent);
+		transition: width 80ms linear;
+	}
+
+	.article-head {
+		margin-bottom: var(--space-10);
+	}
+	.meta-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-bottom: var(--space-5);
+	}
+	.meta-row .dot {
+		color: var(--text-subtle);
+	}
+	.updated {
+		color: var(--text-muted);
+	}
+	.article-head h1 {
+		font-size: var(--text-5xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-4);
+	}
+	.description {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-6);
+	}
+
+	.tag-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.tag-chips a {
+		display: inline-block;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		padding: 4px 10px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--bg-subtle);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast),
+			background var(--transition-fast);
+	}
+	.tag-chips a:hover {
+		color: var(--text);
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+
+	.hero {
+		margin: 0 auto var(--space-12);
+	}
+	.hero img {
+		display: block;
+		width: 100%;
+		height: auto;
+		border-radius: var(--radius-lg);
+	}
+
+	/* Two-column reading layout: prose centered, TOC sticky on the right.
+	 At narrow widths the TOC collapses to a <details> above the prose. */
+	.reading-area {
+		max-width: var(--width-prose);
+		margin-inline: auto;
+		padding-inline: var(--gutter);
+	}
+	.toc-mobile {
+		margin-bottom: var(--space-6);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: var(--space-3) var(--space-4);
+		font-size: var(--text-sm);
+	}
+	.toc-mobile > summary {
+		cursor: pointer;
+		font-weight: 600;
+		color: var(--text);
+	}
+	.toc-mobile[open] > summary {
+		margin-bottom: var(--space-3);
+	}
+	.toc-side {
+		display: none;
+	}
+
+	@media (min-width: 1180px) {
+		.reading-area {
+			display: grid;
+			grid-template-columns: var(--width-prose) 220px;
+			gap: var(--space-12);
+			max-width: calc(var(--width-prose) + 220px + 3rem);
+		}
+		.toc-mobile {
+			display: none;
+		}
+		.toc-side {
+			display: block;
+		}
+		.toc-sticky {
+			position: sticky;
+			top: calc(var(--header-height) + var(--space-6));
+			max-height: calc(100vh - var(--header-height) - 3rem);
+			overflow-y: auto;
+			padding-bottom: var(--space-4);
+		}
+	}
+	.toc-label,
+	.reader-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-3);
+	}
+	.reader-controls {
+		margin-top: var(--space-6);
+		padding-top: var(--space-5);
+		border-top: 1px solid var(--border);
+	}
+	.size-buttons {
+		display: inline-flex;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+	.size-buttons button {
+		appearance: none;
+		background: transparent;
+		border: 0;
+		border-right: 1px solid var(--border);
+		color: var(--text-muted);
+		font-family: inherit;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		padding: 6px 10px;
+		cursor: pointer;
+		transition:
+			background var(--transition-fast),
+			color var(--transition-fast);
+	}
+	.size-buttons button:last-child {
+		border-right: 0;
+	}
+	.size-buttons button:hover {
+		background: var(--bg-subtle);
+		color: var(--text);
+	}
+	.size-buttons button.active {
+		background: var(--text);
+		color: var(--bg);
+	}
+
+	/* Code blocks aligned to prose; copy button anchored top-right. */
+	.prose :global(pre) {
+		position: relative;
+	}
+	.prose :global(pre) :global(.copy-code) {
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		padding: 4px 10px;
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 500;
+		color: var(--text-muted);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		opacity: 0;
+		transition:
+			opacity var(--transition),
+			color var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+	.prose :global(pre):hover :global(.copy-code),
+	.prose :global(pre) :global(.copy-code:focus-visible) {
+		opacity: 1;
+	}
+	.prose :global(pre) :global(.copy-code:hover) {
+		color: var(--text);
+		border-color: var(--border-strong);
+	}
+
+	/* Heading anchor links */
+	.prose :global(.heading-anchor) {
+		opacity: 0;
+		margin-left: 0.4em;
+		color: var(--text-subtle);
+		text-decoration: none;
+		font-weight: 400;
+		transition: opacity var(--transition-fast);
+	}
+	.prose :global(h2:hover .heading-anchor),
+	.prose :global(h3:hover .heading-anchor),
+	.prose :global(h4:hover .heading-anchor),
+	.prose :global(.heading-anchor:focus-visible) {
+		opacity: 1;
+	}
+	.prose :global(h2 .heading-anchor:hover),
+	.prose :global(h3 .heading-anchor:hover),
+	.prose :global(h4 .heading-anchor:hover) {
+		color: var(--accent);
+	}
+
+	.post-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-4);
+		margin: var(--space-16) auto var(--space-12);
+		padding-top: var(--space-8);
+		border-top: 1px solid var(--border);
+	}
+	.nav-card {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		text-decoration: none;
+		color: inherit;
+		transition:
+			border-color var(--transition),
+			background var(--transition);
+	}
+	.nav-card:hover {
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+	.nav-card.next {
+		text-align: right;
+	}
+	.nav-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+	}
+	.nav-title {
+		font-size: var(--text-base);
+		font-weight: 600;
+		color: var(--text);
+		line-height: 1.35;
+	}
+	.nav-spacer {
+		display: block;
+	}
+
+	.article-footer {
+		margin-top: var(--space-12);
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--border);
+	}
+	.byline {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0;
+	}
+
+	@media (max-width: 640px) {
+		.article-head h1 {
+			font-size: var(--text-4xl);
+		}
+		.post-nav {
+			grid-template-columns: 1fr;
+		}
+		.nav-card.next {
+			text-align: left;
+		}
+	}
+</style>
