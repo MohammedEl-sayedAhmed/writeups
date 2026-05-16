@@ -1,10 +1,11 @@
 ---
-title: 'How I fixed a 0..1 brightness slider in vdu_controls (Philips Evnia DDC/CI bug)'
+title: How I fixed a 0..1 brightness slider in vdu_controls (Philips Evnia DDC/CI bug)
 description: 'A Philips Evnia 27M2N5500Q on Linux gave me a brightness slider stuck at 0..1 in vdu_controls. Tracing it through DDC/CI, capability strings, and a parser bug — and submitting my first open-source fix.'
 pubDate: May 16 2026
 tags: 'linux, opensource, python, debugging'
 published: false
 canonical_url: 'https://mammar.pages.dev/blog/vdu-controls-philips-evnia-brightness-slider-fix/'
+id: 3685159
 ---
 
 I plugged a new monitor into my Kubuntu laptop last week. The brightness slider in the tray utility I use only had two settings: black, and almost-black. Not 0 to 100. Not a continuous gradient. Just two positions.
