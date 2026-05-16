@@ -6,9 +6,8 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	// Update this to your final Cloudflare Pages URL (or custom domain) once provisioned.
-	// Used for canonical URLs and the generated sitemap.
-	site: 'https://writeups.pages.dev',
+	// Used for canonical URLs and the generated sitemap. Update if a custom domain is added later.
+	site: 'https://writeups-16q.pages.dev',
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{
