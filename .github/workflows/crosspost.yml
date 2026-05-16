@@ -6,33 +6,50 @@ on:
     paths:
       - 'src/content/blog/**'
 
-# Required: the action commits the dev.to article ID back to the markdown frontmatter
-# after a post is published for the first time, so subsequent pushes update the same post.
-permissions:
-  contents: write
+# Default-deny at workflow level; the one job below grants only the minimum it needs.
+# Defense in depth: a step that doesn't declare permissions inherits nothing.
+permissions: {}
+
+# Prevent two simultaneous publishes from racing on the same post.
+# cancel-in-progress: false → in-flight runs finish; new ones queue.
+concurrency:
+  group: crosspost-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    # Cap blast radius if anything stalls or loops.
+    timeout-minutes: 10
+
+    # Least-privilege: only `contents: write` (needed so the action can commit
+    # the dev.to article id back to frontmatter). No issues, no PRs, no packages.
+    permissions:
+      contents: write
+
     steps:
       - name: Skip if DEVTO_TOKEN is not configured
         id: gate
         env:
+          # Secret is injected via env, never interpolated into the shell directly.
           DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
         run: |
           if [ -z "$DEVTO_TOKEN" ]; then
-            echo "::warning::DEVTO_TOKEN secret is not set — skipping cross-post. Add it under Settings → Secrets and variables → Actions."
+            echo "::warning::DEVTO_TOKEN secret is not set — skipping cross-post."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Pinned to commit SHA, not tag — protects against tag retargeting attacks.
+      # Corresponds to actions/checkout v6.0.2 (2026-01-09).
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
-      # Pinned to a commit SHA (third-party action) for supply-chain safety.
-      # Tag this corresponds to: v2 (2024-07-18).
+      # Third-party action pinned to commit SHA for supply-chain safety.
+      # Corresponds to sinedied/publish-devto v2 (2024-07-18).
       - name: Publish articles to dev.to
         if: steps.gate.outputs.skip != 'true'
         uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85

@@ -1,0 +1,28 @@
+# Auto-PRs when a pinned GitHub Action gets a security or version update.
+# Without this, SHA-pinning in workflows means we'd silently miss patches.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+    # Group minor and patch updates to reduce PR noise; majors stay individual.
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch

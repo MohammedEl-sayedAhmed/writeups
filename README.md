@@ -86,6 +86,18 @@ Set `canonical_url` in each post's frontmatter so search engines credit the Astr
 
 Hashnode cross-posting is not currently automated — their GraphQL API moved to paid access. If that changes (or you decide to pay), a parallel workflow can be added.
 
+### Security hardening applied to the workflow
+
+| Hardening | Why |
+|---|---|
+| `permissions: {}` at workflow level + `contents: write` only on the job | Default-deny; least privilege |
+| All third-party and official actions pinned to **commit SHA**, not tags | Prevents tag-retargeting / upstream-repo-compromise attacks |
+| [`.github/dependabot.yml`](.github/dependabot.yml) auto-PRs action and npm updates weekly | SHA-pinning doesn't strand us on stale, vulnerable versions |
+| `timeout-minutes: 10` on the job | Caps blast radius of any stuck or looping step |
+| `concurrency:` group with `cancel-in-progress: false` | Two pushes can't race; in-flight publishes finish before the next runs |
+| Secrets injected via `env:` and referenced as quoted shell vars, never inlined | Avoids shell-injection if a secret value ever contains special characters |
+| Trigger restricted to `push` on `main` (no `pull_request` from forks) | Untrusted PRs cannot access secrets |
+
 ## Notes
 
 - `pubDate` is the original publication date; don't change it once a post is live or RSS readers will re-fetch.
