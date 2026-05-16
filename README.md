@@ -4,12 +4,24 @@ Source repository for a personal technical blog. Built with [Astro](https://astr
 
 ## Architecture
 
-```
-src/content/blog/*.md   →  Astro build       →  Cloudflare Pages   (primary, your URL)
-                       ↘  GitHub Action      →  dev.to             (cross-post)
+```mermaid
+flowchart LR
+    src["src/content/blog/*.md"]
+    push["git push → main"]
+    cf["Cloudflare Pages"]
+    gh["GitHub Actions<br/>crosspost.yml"]
+    site(("mammar.pages.dev"))
+    devto(("dev.to/mammar"))
+
+    src --> push
+    push --> cf
+    push --> gh
+    cf -->|astro build| site
+    gh -->|sinedied/publish-devto| devto
+    gh -.->|writes devto id<br/>back to frontmatter| src
 ```
 
-Source of truth is markdown in `src/content/blog/`. Push to `main` triggers both pipelines.
+Source of truth is markdown in `src/content/blog/`. A push to `main` fans out to two parallel pipelines: Astro builds and deploys to Cloudflare Pages, and the GitHub Action cross-posts to dev.to. The dashed line is the cross-post Action committing the dev.to article `id` back so subsequent pushes update the same article instead of creating duplicates.
 
 ## Layout
 
