@@ -1,0 +1,168 @@
+---
+import { type CollectionEntry, getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import Header from '../../components/Header.astro';
+import { SITE_TITLE } from '../../consts';
+
+const slugify = (t: string) => t.toLowerCase().replace(/\s+/g, '-');
+
+export async function getStaticPaths() {
+	const posts = await getCollection('blog');
+	const byTag = new Map<string, { label: string; posts: CollectionEntry<'blog'>[] }>();
+	for (const post of posts) {
+		const raw = post.data.tags;
+		if (!raw) continue;
+		const tags = raw
+			.split(',')
+			.map((t: string) => t.trim())
+			.filter(Boolean);
+		for (const tag of tags) {
+			const slug = tag.toLowerCase().replace(/\s+/g, '-');
+			if (!byTag.has(slug)) byTag.set(slug, { label: tag, posts: [] });
+			byTag.get(slug)!.posts.push(post);
+		}
+	}
+	return [...byTag.entries()].map(([slug, { label, posts }]) => ({
+		params: { tag: slug },
+		props: {
+			label,
+			posts: posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+		},
+	}));
+}
+
+type Props = { label: string; posts: CollectionEntry<'blog'>[] };
+const { label, posts } = Astro.props as Props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead
+			title={`#${label} · ${SITE_TITLE}`}
+			description={`Writeups tagged "${label}".`}
+		/>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="container container--content">
+				<header class="page-head">
+					<p class="eyebrow">Tag</p>
+					<h1>#{label}</h1>
+					<p class="lead">
+						{posts.length} writeup{posts.length === 1 ? '' : 's'} tagged with
+						<code>{label}</code>.
+					</p>
+					<p><a href="/tags/" class="back-link">← All tags</a></p>
+				</header>
+
+				<ul class="post-list">
+					{
+						posts.map((post) => (
+							<li>
+								<a href={`/blog/${post.id}/`} class="post-link">
+									<div class="post-meta">
+										<FormattedDate date={post.data.pubDate} />
+										{post.data.tags && (
+											<>
+												<span class="dot" aria-hidden="true">·</span>
+												<span class="tags">{post.data.tags}</span>
+											</>
+										)}
+									</div>
+									<h2 class="post-title">{post.data.title}</h2>
+									<p class="post-desc">{post.data.description}</p>
+								</a>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	.page-head {
+		margin-bottom: var(--space-12);
+	}
+	.eyebrow {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-3);
+	}
+	.page-head h1 {
+		font-family: var(--font-mono);
+		font-size: var(--text-5xl);
+		letter-spacing: -0.02em;
+		margin-bottom: var(--space-4);
+	}
+	.lead {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-4);
+	}
+	.back-link {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+	.back-link:hover {
+		color: var(--text);
+	}
+	.post-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.post-list li {
+		border-top: 1px solid var(--border);
+	}
+	.post-list li:last-child {
+		border-bottom: 1px solid var(--border);
+	}
+	.post-link {
+		display: block;
+		padding: var(--space-6) 0;
+		text-decoration: none;
+		color: inherit;
+	}
+	.post-link:hover .post-title {
+		color: var(--accent);
+	}
+	.post-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-bottom: var(--space-3);
+	}
+	.post-meta .dot {
+		color: var(--text-subtle);
+	}
+	.tags {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+	}
+	.post-title {
+		font-size: var(--text-2xl);
+		margin: 0 0 var(--space-2);
+		color: var(--text);
+		letter-spacing: -0.02em;
+		transition: color var(--transition-fast);
+	}
+	.post-desc {
+		font-size: var(--text-base);
+		color: var(--text-muted);
+		margin: 0;
+		max-width: 42rem;
+	}
+</style>

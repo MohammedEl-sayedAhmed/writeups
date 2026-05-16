@@ -1,0 +1,67 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+	headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+// rehype-autolink-headings injects a "#" anchor element inside each heading;
+// Astro's heading extraction concatenates its text, so we trim it off here.
+const stripAnchor = (t: string) => t.replace(/\s*#\s*$/, '').trim();
+const items = headings
+	.filter((h) => h.depth >= 2 && h.depth <= 3)
+	.map((h) => ({ ...h, text: stripAnchor(h.text) }));
+---
+
+{
+	items.length > 0 && (
+		<nav class="toc-nav" aria-label="Table of contents">
+			<ol>
+				{items.map((h) => (
+					<li class={`depth-${h.depth}`}>
+						<a href={`#${h.slug}`} data-toc-link={h.slug}>
+							{h.text}
+						</a>
+					</li>
+				))}
+			</ol>
+		</nav>
+	)
+}
+
+<style>
+	.toc-nav ol {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.toc-nav li.depth-3 {
+		padding-left: var(--space-4);
+	}
+	.toc-nav a {
+		display: block;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		text-decoration: none;
+		line-height: 1.45;
+		padding: 2px 0;
+		border-left: 2px solid transparent;
+		padding-left: var(--space-3);
+		margin-left: -2px;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+	.toc-nav a:hover {
+		color: var(--text);
+	}
+	.toc-nav a.active {
+		color: var(--text);
+		border-left-color: var(--accent);
+		font-weight: 500;
+	}
+</style>

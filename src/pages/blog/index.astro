@@ -1,114 +1,167 @@
 ---
-import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
+import { SITE_TITLE } from '../../consts';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
+const slugifyTag = (t: string) => t.toLowerCase().replace(/\s+/g, '-');
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<style>
-			main {
-				width: 960px;
-			}
-			ul {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 2rem;
-				list-style-type: none;
-				margin: 0;
-				padding: 0;
-			}
-			ul li {
-				width: calc(50% - 1rem);
-			}
-			ul li * {
-				text-decoration: none;
-				transition: 0.2s ease;
-			}
-			ul li:first-child {
-				width: 100%;
-				margin-bottom: 1rem;
-				text-align: center;
-			}
-			ul li:first-child img {
-				width: 100%;
-			}
-			ul li:first-child .title {
-				font-size: 2.369rem;
-			}
-			ul li img {
-				margin-bottom: 0.5rem;
-				border-radius: 12px;
-			}
-			ul li a {
-				display: block;
-			}
-			.title {
-				margin: 0;
-				color: rgb(var(--black));
-				line-height: 1;
-			}
-			.date {
-				margin: 0;
-				color: rgb(var(--gray));
-			}
-			ul li a:hover h4,
-			ul li a:hover .date {
-				color: rgb(var(--accent));
-			}
-			ul a:hover img {
-				box-shadow: var(--box-shadow);
-			}
-			@media (max-width: 720px) {
-				ul {
-					gap: 0.5em;
-				}
-				ul li {
-					width: 100%;
-					text-align: center;
-				}
-				ul li:first-child {
-					margin-bottom: 0;
-				}
-				ul li:first-child .title {
-					font-size: 1.563em;
-				}
-			}
-		</style>
+		<BaseHead
+			title={`Blog · ${SITE_TITLE}`}
+			description="Longform writeups on building things, breaking things, and the in-between."
+		/>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<section>
-				<ul>
+			<div class="container container--content">
+				<header class="page-head">
+					<h1>Writeups</h1>
+					<p class="lead">Longform notes on shipping software and chasing bugs through layers.</p>
+					<p class="meta-link"><a href="/tags/">Browse by tag →</a></p>
+				</header>
+
+				<ul class="post-list">
 					{
-						posts.map((post) => (
-							<li>
-								<a href={`/blog/${post.id}/`}>
-									{post.data.heroImage && (
-										<Image width={720} height={360} src={post.data.heroImage} alt="" />
+						posts.map((post) => {
+							const tags = post.data.tags
+								? post.data.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+								: [];
+							return (
+								<li class="post-item">
+									<a href={`/blog/${post.id}/`} class="post-link">
+										<div class="post-meta">
+											<FormattedDate date={post.data.pubDate} />
+										</div>
+										<h2 class="post-title">{post.data.title}</h2>
+										<p class="post-desc">{post.data.description}</p>
+									</a>
+									{tags.length > 0 && (
+										<ul class="tag-chips" aria-label="Tags">
+											{tags.map((t) => (
+												<li>
+													<a href={`/tags/${slugifyTag(t)}/`}>{t}</a>
+												</li>
+											))}
+										</ul>
 									)}
-									<h4 class="title">{post.data.title}</h4>
-									<p class="date">
-										<FormattedDate date={post.data.pubDate} />
-									</p>
-								</a>
-							</li>
-						))
+								</li>
+							);
+						})
 					}
 				</ul>
-			</section>
+			</div>
 		</main>
 		<Footer />
 	</body>
 </html>
+
+<style>
+	.page-head {
+		margin-bottom: var(--space-12);
+	}
+	.page-head h1 {
+		font-size: var(--text-5xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-4);
+	}
+	.lead {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-4);
+		max-width: 36rem;
+	}
+	.meta-link a {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+	.meta-link a:hover {
+		color: var(--text);
+	}
+	.post-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.post-item {
+		border-top: 1px solid var(--border);
+		padding-block: var(--space-6);
+	}
+	.post-item:last-child {
+		border-bottom: 1px solid var(--border);
+	}
+	.post-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+		transition: color var(--transition-fast);
+	}
+	.post-link:hover .post-title {
+		color: var(--accent);
+	}
+	.post-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-bottom: var(--space-3);
+	}
+	.post-title {
+		font-size: var(--text-2xl);
+		margin: 0 0 var(--space-2);
+		color: var(--text);
+		letter-spacing: -0.02em;
+		transition: color var(--transition-fast);
+	}
+	.post-desc {
+		font-size: var(--text-base);
+		color: var(--text-muted);
+		margin: 0 0 var(--space-4);
+		max-width: 42rem;
+	}
+	.tag-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.tag-chips a {
+		display: inline-block;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		padding: 3px 9px;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--bg-subtle);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast),
+			background var(--transition-fast);
+	}
+	.tag-chips a:hover {
+		color: var(--text);
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+
+	@media (max-width: 640px) {
+		.post-item {
+			padding-block: var(--space-5);
+		}
+	}
+</style>
