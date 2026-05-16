@@ -1,0 +1,31 @@
+# Astro build output
+dist/
+.astro/
+
+# Dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.production
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors (keep .vscode/ shared for Astro extension recommendations)
+.idea/
+*.swp
+*.swo
+*~
+
+# Local scratch / drafts not meant to ship
+scratch/
+*.local.md
