@@ -1,0 +1,44 @@
+name: Cross-post to dev.to
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/content/blog/**'
+
+# Required: the action commits the dev.to article ID back to the markdown frontmatter
+# after a post is published for the first time, so subsequent pushes update the same post.
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip if DEVTO_TOKEN is not configured
+        id: gate
+        env:
+          DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
+        run: |
+          if [ -z "$DEVTO_TOKEN" ]; then
+            echo "::warning::DEVTO_TOKEN secret is not set — skipping cross-post. Add it under Settings → Secrets and variables → Actions."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v4
+
+      # Pinned to a commit SHA (third-party action) for supply-chain safety.
+      # Tag this corresponds to: v2 (2024-07-18).
+      - name: Publish articles to dev.to
+        if: steps.gate.outputs.skip != 'true'
+        uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85
+        with:
+          devto_key: ${{ secrets.DEVTO_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          files: 'src/content/blog/**/*.md'
+          branch: main
+          conventional_commits: true
