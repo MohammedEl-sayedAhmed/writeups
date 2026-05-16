@@ -42,17 +42,16 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Pinned to commit SHA, not tag — protects against tag retargeting attacks.
-      # Corresponds to actions/checkout v6.0.2 (2026-01-09).
+      # Actions are pinned to commit SHA (not tag) so a compromise of the upstream
+      # repo cannot silently retarget what we run. The trailing `# vX.Y.Z` comment
+      # is the standard convention Dependabot reads to bump the pin.
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Third-party action pinned to commit SHA for supply-chain safety.
-      # Corresponds to sinedied/publish-devto v2 (2024-07-18).
       - name: Publish articles to dev.to
         if: steps.gate.outputs.skip != 'true'
-        uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85
+        uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85 # v2
         with:
           devto_key: ${{ secrets.DEVTO_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
