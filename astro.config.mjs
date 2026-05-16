@@ -7,7 +7,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 // https://astro.build/config
 export default defineConfig({
 	// Used for canonical URLs and the generated sitemap. Update if a custom domain is added later.
-	site: 'https://writeups-16q.pages.dev',
+	site: 'https://mammar.pages.dev',
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{

@@ -49,7 +49,7 @@ heroImage: '../../assets/your-image.jpg'
 
 # optional, cross-post-side (read by .github/workflows/crosspost.yml)
 tags: 'rust, systems, distributed'    # comma-separated, max 4, no '#'
-canonical_url: 'https://writeups-16q.pages.dev/blog/your-slug/'
+canonical_url: 'https://mammar.pages.dev/blog/your-slug/'
 published: true                        # set false to keep the dev.to copy as a draft
 ---
 
