@@ -23,16 +23,35 @@ flowchart LR
 
 Source of truth is markdown in `src/content/blog/`. A push to `main` fans out to two parallel pipelines: Astro builds and deploys to Cloudflare Pages, and the GitHub Action cross-posts to dev.to. The dashed line is the cross-post Action committing the dev.to article `id` back so subsequent pushes update the same article instead of creating duplicates.
 
+## Features
+
+What the site does, beyond rendering markdown:
+
+- **Light and dark themes** — CSS-variable design system. Honors `prefers-color-scheme` and lets readers override; choice persists in `localStorage`. No flash on load.
+- **Per-post Open Graph images** — auto-generated at build (`/og/<slug>.png`) via [satori](https://github.com/vercel/satori) + [@resvg/resvg-js](https://github.com/yisibl/resvg-js) using bundled Inter. Used for the `og:image` / `twitter:image` cards on dev.to, Twitter, LinkedIn, Slack, etc.
+- **JSON-LD** — every post emits `BlogPosting` structured data (`@type`, `author`, `datePublished`, `mainEntityOfPage`, etc.) for richer search results.
+- **Tag archives** — frontmatter `tags` automatically drive `/tags/<slug>/` listing pages plus a `/tags/` index with counts. Tag chips on posts and the blog list are clickable.
+- **Reader affordances on post pages**:
+  - Sticky table of contents (≥1180px) with active-section highlight; collapses to a `<details>` accordion on smaller viewports.
+  - Reader font-size control (S/M/L/XL), persisted.
+  - Reading-time estimate (computed at build from word count).
+  - Reading-progress bar at the top of the article.
+  - Copy-code button on every fenced block.
+  - Heading anchor links via `rehype-slug` + `rehype-autolink-headings`.
+  - Prev/next post navigation.
+- **RSS** at `/rss.xml`, **sitemap** at `/sitemap-index.xml`.
+
 ## Layout
 
 | Path | What it is |
 |---|---|
 | `src/content/blog/` | One markdown file per post |
 | `src/content.config.ts` | Frontmatter schema (Zod-validated at build time) |
-| `src/pages/` | Page templates (home, blog index, post template, RSS feed) |
-| `src/layouts/`, `src/components/` | Reusable view code |
-| `src/consts.ts` | Site title and description |
-| `astro.config.mjs` | Astro config (site URL, integrations) |
+| `src/pages/` | Page templates: home, `about`, `blog/` index + `[...slug]` post template, `tags/` index + `[tag]` archive, `og/[...slug].png` build-time OG image, `rss.xml.js` feed |
+| `src/layouts/`, `src/components/` | Reusable view code (Header, Footer, BaseHead, TableOfContents, BlogPost layout, etc.) |
+| `src/styles/global.css` | Design tokens (colors, spacing, type scale) and prose styles |
+| `src/consts.ts` | Site title, description, author name + URL, social links |
+| `astro.config.mjs` | Astro config (site URL, integrations, rehype plugins) |
 | `.github/workflows/crosspost.yml` | dev.to cross-post automation |
 
 ## Local development
@@ -68,7 +87,9 @@ published: true                        # set false to keep the dev.to copy as a 
 Post body in markdown.
 ```
 
-The filename (without `.md`) becomes the URL slug. Push to `main` → Cloudflare Pages rebuilds the site → cross-post Action publishes/updates the dev.to copy.
+The filename (without `.md`) becomes the URL slug. Each `tags` entry becomes a clickable chip on the post and is also indexed under `/tags/<slug>/` (slug = lowercased, spaces → hyphens). The dev.to / Twitter card image is generated automatically at build from the post's title, date, and tags — no `heroImage` required.
+
+Push to `main` → Cloudflare Pages rebuilds the site → cross-post Action publishes/updates the dev.to copy.
 
 ## Deployment
 
