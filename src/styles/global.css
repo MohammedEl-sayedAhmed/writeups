@@ -121,6 +121,11 @@ html {
 	-moz-osx-font-smoothing: grayscale;
 	text-rendering: optimizeLegibility;
 	scroll-behavior: smooth;
+	/* Prevent any descendant from breaking the horizontal layout on mobile.
+	 If something overflows (long URLs in code, oversized images), it scrolls
+	 inside its own container — but the document itself stays viewport-wide,
+	 keeping fixed-position elements (share sheet, scroll-to-top) on screen. */
+	overflow-x: clip;
 }
 
 body {
@@ -132,6 +137,7 @@ body {
 	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
+	overflow-x: clip;
 	transition:
 		background var(--transition),
 		color var(--transition);
