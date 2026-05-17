@@ -25,4 +25,14 @@ test.describe('site search', () => {
 		const resp = await page.request.get('/pagefind/pagefind.js');
 		expect(resp.ok()).toBe(true);
 	});
+
+	test('clicking the backdrop closes the modal', async ({ page }) => {
+		await page.goto('/');
+		await page.getByRole('button', { name: /Search/ }).click();
+		await expect(page.locator('#search-modal')).toBeVisible();
+		// Click in the top-left corner of the viewport — well outside the
+		// centered dialog content, on the ::backdrop area.
+		await page.mouse.click(5, 5);
+		await expect(page.locator('#search-modal')).toBeHidden();
+	});
 });

@@ -122,6 +122,14 @@
 		}
 		if (target.closest('[data-close-search]')) {
 			closeSearch();
+			return;
+		}
+		// Backdrop click: clicks on the ::backdrop pseudo-element fire on the
+		// <dialog> itself as the target. Clicks inside the modal content land
+		// on a child element instead.
+		const modal = document.getElementById('search-modal') as HTMLDialogElement | null;
+		if (modal && modal.open && target === modal) {
+			closeSearch();
 		}
 	});
 
@@ -228,7 +236,7 @@
 		flex: 1 1 auto;
 		min-height: 200px;
 		overflow-y: auto;
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-5) var(--space-4) var(--space-4);
 		/* Pagefind UI theming tokens; the input gets `--bg-elevated` so it
 		 stays visible against the modal's `--bg`. */
 		--pagefind-ui-scale: 0.95;
@@ -238,7 +246,7 @@
 		--pagefind-ui-border: var(--border);
 		--pagefind-ui-tag: var(--bg-subtle);
 		--pagefind-ui-border-width: 1px;
-		--pagefind-ui-border-radius: var(--radius-sm);
+		--pagefind-ui-border-radius: var(--radius-md);
 		--pagefind-ui-font: var(--font-sans);
 	}
 	.search-loading {
@@ -247,23 +255,67 @@
 		color: var(--text-muted);
 	}
 
-	/* Belt-and-suspenders styling on the search input itself so it stays
-	 visible even if Pagefind UI's own stylesheet hasn't finished loading. */
+	/* Pagefind UI overrides — keep the input visible even before its own
+	 stylesheet loads, give it room for the magnifying-glass icon, and trade
+	 the global :focus-visible neon outline for a subtle accent border. */
+	:global(#search-results .pagefind-ui__form) {
+		position: relative;
+	}
 	:global(#search-results .pagefind-ui__search-input) {
 		background: var(--bg-elevated);
 		color: var(--text);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		padding: 12px 14px;
+		border-radius: var(--radius-md);
+		/* 48px left padding clears Pagefind's icon; 44px right padding
+		 clears the clear-search button. */
+		padding: 14px 44px 14px 48px;
 		/* >=16px prevents iOS Safari from zooming when the input is focused. */
 		font-size: 16px;
+		line-height: 1.4;
 		width: 100%;
 		box-sizing: border-box;
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
 	}
-	:global(#search-results .pagefind-ui__form) {
-		position: relative;
+	:global(#search-results .pagefind-ui__search-input::placeholder) {
+		color: var(--text-subtle);
+	}
+	:global(#search-results .pagefind-ui__search-input:focus),
+	:global(#search-results .pagefind-ui__search-input:focus-visible) {
+		outline: none;
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 	}
 	:global(#search-results .pagefind-ui__search-clear) {
 		color: var(--text-muted);
+		font-size: var(--text-xs);
+	}
+	:global(#search-results .pagefind-ui__results) {
+		margin-top: var(--space-4);
+	}
+	:global(#search-results .pagefind-ui__result) {
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+	:global(#search-results .pagefind-ui__result:first-child) {
+		border-top: 0;
+	}
+	:global(#search-results .pagefind-ui__result-link) {
+		color: var(--text);
+		font-weight: 600;
+		text-decoration: none;
+	}
+	:global(#search-results .pagefind-ui__result-link:hover) {
+		color: var(--accent);
+	}
+	:global(#search-results .pagefind-ui__result-excerpt) {
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+	}
+	:global(#search-results .pagefind-ui__message) {
+		color: var(--text-muted);
+		font-size: var(--text-sm);
+		margin-top: var(--space-3);
 	}
 </style>
