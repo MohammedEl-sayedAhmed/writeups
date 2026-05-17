@@ -78,7 +78,7 @@ const jsonLd = {
 		<div id="reading-progress" aria-hidden="true"></div>
 		<Header />
 		<main>
-			<article>
+			<article data-pagefind-body>
 				<header class="article-head container container--prose">
 					<div class="meta-row">
 						<FormattedDate date={pubDate} />
@@ -377,12 +377,14 @@ const jsonLd = {
 		transition:
 			color var(--transition-fast),
 			border-color var(--transition-fast),
-			background var(--transition-fast);
+			background var(--transition-fast),
+			transform var(--transition-fast);
 	}
 	.tag-chips a:hover {
 		color: var(--text);
-		border-color: var(--border-strong);
+		border-color: var(--accent);
 		background: var(--bg-elevated);
+		transform: translateY(-1px);
 	}
 
 	.hero {

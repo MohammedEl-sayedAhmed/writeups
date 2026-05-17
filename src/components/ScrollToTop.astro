@@ -1,0 +1,82 @@
+---
+// Floating "back to top" button. Appears after the reader scrolls past the
+// first viewport and smoothly returns them to the article header where the
+// share button, text-size controls, and tag chips live.
+---
+
+<button
+	id="scroll-top"
+	type="button"
+	class="scroll-top"
+	aria-label="Back to top"
+	hidden
+>
+	<svg
+		viewBox="0 0 24 24"
+		width="20"
+		height="20"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+	>
+		<polyline points="18 15 12 9 6 15"></polyline>
+	</svg>
+</button>
+
+<script>
+	function update() {
+		const btn = document.getElementById('scroll-top');
+		if (!btn) return;
+		if (window.scrollY > 600) btn.removeAttribute('hidden');
+		else btn.setAttribute('hidden', '');
+	}
+	window.addEventListener('scroll', update, { passive: true });
+	document.addEventListener('astro:page-load', update);
+
+	document.addEventListener('click', (event) => {
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		if (!target.closest('#scroll-top')) return;
+		const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+	});
+</script>
+
+<style>
+	.scroll-top {
+		position: fixed;
+		right: var(--space-5);
+		bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0));
+		z-index: 30;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		color: var(--text);
+		background: var(--bg);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		cursor: pointer;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+		transition:
+			background var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+	.scroll-top[hidden] {
+		display: none;
+	}
+	.scroll-top:hover {
+		background: var(--bg-elevated);
+		border-color: var(--border-strong);
+	}
+	@media (max-width: 480px) {
+		.scroll-top {
+			right: var(--space-4);
+			bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0));
+		}
+	}
+</style>
