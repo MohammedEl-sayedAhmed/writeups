@@ -1,0 +1,7 @@
+# Every path in the repository is owned by the maintainer. With branch
+# protection on `main` configured to require reviews from code owners, this
+# triggers an automatic review request when any future collaborator opens
+# a pull request. As long as the repository is single-maintainer, no
+# review requirement is enforced — see README for the active protection
+# profile.
+*	@MohammedEl-sayedAhmed
