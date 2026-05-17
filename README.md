@@ -131,6 +131,22 @@ Hashnode cross-posting is not currently automated — their GraphQL API moved to
 | Secrets injected via `env:` and referenced as quoted shell vars, never inlined | Avoids shell-injection if a secret value ever contains special characters |
 | Trigger restricted to `push` on `main` (no `pull_request` from forks) | Untrusted PRs cannot access secrets |
 
+## Branch protection
+
+`main` is protected. Configured via `gh api .../branches/main/protection`; change at [Settings → Branches → main](https://github.com/MohammedEl-sayedAhmed/writeups/settings/branches).
+
+| Rule | Effect |
+|---|---|
+| **Require a pull request before merging** | No direct pushes to `main`. Approvals required: **0** (single-maintainer; you can merge your own work). |
+| **Require status checks: `unit`, `e2e`** | The Vitest and Playwright jobs from `.github/workflows/test.yml` must pass before merge. |
+| **Require branches to be up to date** | A PR must be rebased on the latest `main` before its checks count. |
+| **Require linear history** | No merge commits on `main` — matches our squash-merge workflow. |
+| **Block force pushes** | History cannot be rewritten. |
+| **Block branch deletions** | `main` cannot be deleted. |
+| **Admin bypass: enabled** | The maintainer can override in genuine emergencies (do not use casually). |
+
+`.github/CODEOWNERS` maps every path to `@MohammedEl-sayedAhmed`. With a single maintainer this is a no-op; if a collaborator joins later, GitHub will automatically request review from the owner on any PR touching covered paths.
+
 ## Notes
 
 - `pubDate` is the original publication date; don't change it once a post is live or RSS readers will re-fetch.
