@@ -6,6 +6,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import Comments from '../components/Comments.astro';
 import PostShare from '../components/PostShare.astro';
 import RelatedPosts from '../components/RelatedPosts.astro';
 import TableOfContents from '../components/TableOfContents.astro';
@@ -43,6 +44,7 @@ const {
 	slug,
 	devtoUrl,
 	related = [],
+	comments = true,
 } = Astro.props as Props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImageUrl = slug ? `/og/${slug}.png` : undefined;
@@ -198,6 +200,8 @@ const jsonLd = {
 						<a href="/blog">All writeups →</a>
 					</p>
 				</footer>
+
+				{comments !== false && <Comments />}
 			</article>
 		</main>
 		<Footer />
