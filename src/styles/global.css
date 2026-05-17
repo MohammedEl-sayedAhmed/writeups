@@ -54,25 +54,8 @@
 	--transition: 180ms ease;
 }
 
-/* Light theme (default) --------------------------------------------- */
+/* Dark theme (default) ---------------------------------------------- */
 :root,
-:root[data-theme='light'] {
-	color-scheme: light;
-	--bg: #ffffff;
-	--bg-elevated: #fafafa;
-	--bg-subtle: #f4f4f5;
-	--bg-code: #f4f4f5;
-	--text: #18181b;
-	--text-muted: #52525b;
-	--text-subtle: #a1a1aa;
-	--border: #e4e4e7;
-	--border-strong: #d4d4d8;
-	--link: #18181b;
-	--accent: #c2410c; /* burnt orange — sparingly, for focus + emphasis */
-	--header-bg: rgba(255, 255, 255, 0.78);
-}
-
-/* Dark theme -------------------------------------------------------- */
 :root[data-theme='dark'] {
 	color-scheme: dark;
 	--bg: #09090b;
@@ -89,23 +72,21 @@
 	--header-bg: rgba(9, 9, 11, 0.72);
 }
 
-/* System dark mode when user hasn't explicitly picked -------------- */
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme='light']) {
-		color-scheme: dark;
-		--bg: #09090b;
-		--bg-elevated: #18181b;
-		--bg-subtle: #1c1c20;
-		--bg-code: #18181b;
-		--text: #fafafa;
-		--text-muted: #a1a1aa;
-		--text-subtle: #71717a;
-		--border: #27272a;
-		--border-strong: #3f3f46;
-		--link: #fafafa;
-		--accent: #fb923c;
-		--header-bg: rgba(9, 9, 11, 0.72);
-	}
+/* Light theme — opt-in via the header toggle ------------------------ */
+:root[data-theme='light'] {
+	color-scheme: light;
+	--bg: #ffffff;
+	--bg-elevated: #fafafa;
+	--bg-subtle: #f4f4f5;
+	--bg-code: #f4f4f5;
+	--text: #18181b;
+	--text-muted: #52525b;
+	--text-subtle: #a1a1aa;
+	--border: #e4e4e7;
+	--border-strong: #d4d4d8;
+	--link: #18181b;
+	--accent: #c2410c;
+	--header-bg: rgba(255, 255, 255, 0.78);
 }
 
 /* Reset ------------------------------------------------------------- */
