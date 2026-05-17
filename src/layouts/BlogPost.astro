@@ -7,6 +7,7 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import PostShare from '../components/PostShare.astro';
+import RelatedPosts from '../components/RelatedPosts.astro';
 import TableOfContents from '../components/TableOfContents.astro';
 import { AUTHOR_NAME, AUTHOR_URL, SOCIALS } from '../consts';
 
@@ -17,6 +18,13 @@ type ExtraProps = {
 	headings?: MarkdownHeading[];
 	slug?: string;
 	devtoUrl?: string;
+	related?: Array<{
+		id: string;
+		title: string;
+		description: string;
+		pubDate: Date;
+		tags: string[];
+	}>;
 };
 
 type Props = CollectionEntry<'blog'>['data'] & ExtraProps;
@@ -34,6 +42,7 @@ const {
 	headings = [],
 	slug,
 	devtoUrl,
+	related = [],
 } = Astro.props as Props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImageUrl = slug ? `/og/${slug}.png` : undefined;
@@ -155,6 +164,8 @@ const jsonLd = {
 						)
 					}
 				</div>
+
+				<RelatedPosts posts={related} />
 
 				{
 					(prev || next) && (
