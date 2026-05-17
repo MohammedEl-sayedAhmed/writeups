@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import type { ImageMetadata } from 'astro';
+import { ClientRouter } from 'astro:transitions';
 import FallbackImage from '../assets/blog-placeholder-1.jpg';
 import { SITE_TITLE } from '../consts';
 
@@ -52,16 +53,22 @@ const ogImage = ogImageUrl
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={ogImage} />
 
-<script is:inline>
+<ClientRouter />
+
+<script is:inline data-astro-rerun>
 	(function () {
 		try {
 			var t = localStorage.getItem('theme');
 			if (t === 'dark' || t === 'light') {
 				document.documentElement.setAttribute('data-theme', t);
+			} else {
+				document.documentElement.removeAttribute('data-theme');
 			}
 			var f = localStorage.getItem('fontSize');
 			if (f === 's' || f === 'm' || f === 'l' || f === 'xl') {
 				document.documentElement.setAttribute('data-font-size', f);
+			} else {
+				document.documentElement.removeAttribute('data-font-size');
 			}
 		} catch (e) {}
 	})();

@@ -50,7 +50,7 @@ const latestTags = latest?.data.tags
 								<div class="card-meta">
 									<FormattedDate date={latest.data.pubDate} />
 								</div>
-								<h2 class="card-title">{latest.data.title}</h2>
+								<h2 class="card-title" transition:name={`post-title-${latest.id}`}>{latest.data.title}</h2>
 								<p class="card-desc">{latest.data.description}</p>
 								{latestTags.length > 0 && (
 									<ul class="tag-chips">
