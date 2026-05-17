@@ -6,6 +6,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import PostShare from '../components/PostShare.astro';
 import TableOfContents from '../components/TableOfContents.astro';
 import { AUTHOR_NAME, AUTHOR_URL, SOCIALS } from '../consts';
 
@@ -15,6 +16,7 @@ type ExtraProps = {
 	next?: { id: string; title: string } | null;
 	headings?: MarkdownHeading[];
 	slug?: string;
+	devtoUrl?: string;
 };
 
 type Props = CollectionEntry<'blog'>['data'] & ExtraProps;
@@ -31,6 +33,7 @@ const {
 	next,
 	headings = [],
 	slug,
+	devtoUrl,
 } = Astro.props as Props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImageUrl = slug ? `/og/${slug}.png` : undefined;
@@ -150,6 +153,13 @@ const jsonLd = {
 						)
 					}
 				</div>
+
+				<PostShare
+					title={title}
+					url={canonical.toString()}
+					description={description}
+					devtoUrl={devtoUrl}
+				/>
 
 				{
 					(prev || next) && (

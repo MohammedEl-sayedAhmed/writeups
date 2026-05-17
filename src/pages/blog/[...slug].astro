@@ -1,6 +1,7 @@
 ---
 import { type CollectionEntry, getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
+import { resolveDevtoUrl } from '../../lib/devto';
 
 export async function getStaticPaths() {
 	const posts = (await getCollection('blog')).sort(
@@ -27,6 +28,8 @@ const { Content, headings } = await render(post);
 
 const wordCount = post.body ? post.body.trim().split(/\s+/).length : 0;
 const readingMinutes = Math.max(1, Math.round(wordCount / 220));
+
+const devtoUrl = post.data.id ? await resolveDevtoUrl(post.data.id) : undefined;
 ---
 
 <BlogPost
@@ -36,6 +39,7 @@ const readingMinutes = Math.max(1, Math.round(wordCount / 220));
 	readingMinutes={readingMinutes}
 	prev={prev ? { id: prev.id, title: prev.data.title } : null}
 	next={next ? { id: next.id, title: next.data.title } : null}
+	devtoUrl={devtoUrl}
 >
 	<Content />
 </BlogPost>

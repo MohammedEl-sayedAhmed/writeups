@@ -1,0 +1,157 @@
+---
+import { shareUrls } from '../lib/share';
+
+interface Props {
+	title: string;
+	url: string;
+	description: string;
+	devtoUrl?: string;
+}
+
+const { title, url, description, devtoUrl } = Astro.props;
+const urls = shareUrls({ title, url, description });
+---
+
+<aside class="post-share container container--content" data-share-url={url} data-share-title={title}>
+	{
+		devtoUrl && (
+			<p class="discuss-cta">
+				<a href={devtoUrl} target="_blank" rel="noopener">
+					Discuss on dev.to →
+				</a>
+			</p>
+		)
+	}
+	<p class="share-label">Share</p>
+	<ul class="share-list">
+		<li><a href={urls.x} target="_blank" rel="noopener">X</a></li>
+		<li><a href={urls.linkedin} target="_blank" rel="noopener">LinkedIn</a></li>
+		<li><a href={urls.bluesky} target="_blank" rel="noopener">Bluesky</a></li>
+		<li><a href={urls.hackernews} target="_blank" rel="noopener">Hacker News</a></li>
+		<li><a href={urls.reddit} target="_blank" rel="noopener">Reddit</a></li>
+		<li><button type="button" data-share="mastodon">Mastodon</button></li>
+		<li><a href={urls.email}>Email</a></li>
+		<li><button type="button" data-share="copy">Copy link</button></li>
+	</ul>
+</aside>
+
+<script>
+	// Document-level delegation so the handlers survive Astro soft navigations.
+	document.addEventListener('click', async (event) => {
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		const btn = target.closest<HTMLButtonElement>('[data-share]');
+		if (!btn) return;
+		const root = btn.closest('.post-share');
+		if (!root) return;
+
+		const url = root.getAttribute('data-share-url') ?? '';
+		const title = root.getAttribute('data-share-title') ?? '';
+		const action = btn.getAttribute('data-share');
+
+		if (action === 'mastodon') {
+			let saved = '';
+			try {
+				saved = localStorage.getItem('mastodonInstance') ?? '';
+			} catch (e) {}
+			const entered = window.prompt(
+				'Your Mastodon instance (e.g. mastodon.social):',
+				saved,
+			);
+			if (!entered) return;
+			const clean = entered.trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+			if (!clean) return;
+			try {
+				localStorage.setItem('mastodonInstance', clean);
+			} catch (e) {}
+			const text = `${title} ${url}`;
+			window.open(
+				`https://${clean}/share?text=${encodeURIComponent(text)}`,
+				'_blank',
+				'noopener',
+			);
+			return;
+		}
+
+		if (action === 'copy') {
+			const original = btn.textContent ?? 'Copy link';
+			try {
+				await navigator.clipboard.writeText(url);
+				btn.textContent = 'Copied';
+				btn.setAttribute('data-copied', 'true');
+			} catch (e) {
+				btn.textContent = 'Failed';
+			}
+			setTimeout(() => {
+				btn.textContent = original;
+				btn.removeAttribute('data-copied');
+			}, 1500);
+		}
+	});
+</script>
+
+<style>
+	.post-share {
+		margin-top: var(--space-12);
+		padding-top: var(--space-6);
+		border-top: 1px solid var(--border);
+	}
+	.discuss-cta {
+		margin: 0 0 var(--space-5);
+		font-size: var(--text-base);
+	}
+	.discuss-cta a {
+		font-weight: 600;
+		text-decoration: underline;
+		text-decoration-color: var(--accent);
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.22em;
+	}
+	.discuss-cta a:hover {
+		text-decoration-color: var(--text);
+	}
+	.share-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-3);
+	}
+	.share-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.share-list a,
+	.share-list button {
+		display: inline-block;
+		font-family: var(--font-sans);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--text-muted);
+		padding: 6px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg);
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast),
+			background var(--transition-fast);
+	}
+	.share-list a:hover,
+	.share-list button:hover {
+		color: var(--text);
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+	.share-list button[data-copied='true'] {
+		color: var(--text);
+		border-color: var(--accent);
+	}
+</style>
