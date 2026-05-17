@@ -150,27 +150,19 @@ import { SITE_TITLE } from '../consts';
 		display: block;
 	}
 	/* Icons show the TARGET theme (click to switch to it), not the current one.
-	 Default (light) → show moon (click to go dark).
-	 Dark → show sun (click to go light). */
+	 Site default is dark, so show the sun by default (click to go light).
+	 When the user has explicitly opted into light, show the moon. */
 	.icon-sun {
-		display: none;
+		display: block;
 	}
 	.icon-moon {
-		display: block;
-	}
-	:root[data-theme='dark'] .icon-sun {
-		display: block;
-	}
-	:root[data-theme='dark'] .icon-moon {
 		display: none;
 	}
-	@media (prefers-color-scheme: dark) {
-		:root:not([data-theme='light']) .icon-sun {
-			display: block;
-		}
-		:root:not([data-theme='light']) .icon-moon {
-			display: none;
-		}
+	:root[data-theme='light'] .icon-sun {
+		display: none;
+	}
+	:root[data-theme='light'] .icon-moon {
+		display: block;
 	}
 
 	@media (max-width: 480px) {
@@ -192,9 +184,9 @@ import { SITE_TITLE } from '../consts';
 		if (!(target instanceof Element)) return;
 		if (!target.closest('#theme-toggle')) return;
 		const root = document.documentElement;
-		const current = root.getAttribute('data-theme');
-		const systemPrefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
-		const effective = current ?? (systemPrefersDark ? 'dark' : 'light');
+		// Site default is dark. If no `data-theme` is set we're in dark mode;
+		// the click therefore moves to light, and vice versa.
+		const effective = root.getAttribute('data-theme') ?? 'dark';
 		const next = effective === 'dark' ? 'light' : 'dark';
 		root.setAttribute('data-theme', next);
 		try {
