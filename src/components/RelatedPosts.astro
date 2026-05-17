@@ -1,0 +1,139 @@
+---
+import FormattedDate from './FormattedDate.astro';
+
+interface Props {
+	posts: Array<{
+		id: string;
+		title: string;
+		description: string;
+		pubDate: Date;
+		tags: string[];
+	}>;
+}
+
+const { posts } = Astro.props;
+---
+
+{
+	posts.length > 0 && (
+		<section
+			class="related-posts container container--content"
+			aria-labelledby="related-heading"
+		>
+			<h2 id="related-heading" class="related-heading">
+				Related writeups
+			</h2>
+			<ul class="related-list">
+				{posts.map((p) => (
+					<li class="related-card">
+						<a href={`/blog/${p.id}/`} class="related-link">
+							<div class="related-meta">
+								<FormattedDate date={p.pubDate} />
+							</div>
+							<h3 class="related-title">{p.title}</h3>
+							<p class="related-desc">{p.description}</p>
+							{p.tags.length > 0 && (
+								<ul class="related-tags" aria-label="Tags">
+									{p.tags.map((t) => (
+										<li>{t}</li>
+									))}
+								</ul>
+							)}
+						</a>
+					</li>
+				))}
+			</ul>
+		</section>
+	)
+}
+
+<style>
+	.related-posts {
+		margin-top: var(--space-16);
+		padding-top: var(--space-8);
+		border-top: 1px solid var(--border);
+	}
+	.related-heading {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-6);
+	}
+	.related-list {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--space-5);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.related-card {
+		margin: 0;
+	}
+	.related-link {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		text-decoration: none;
+		color: inherit;
+		height: 100%;
+		transition:
+			border-color var(--transition),
+			background var(--transition);
+	}
+	.related-link:hover {
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+	.related-meta {
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+	}
+	.related-title {
+		font-size: var(--text-base);
+		font-weight: 600;
+		color: var(--text);
+		margin: 0;
+		line-height: 1.35;
+	}
+	.related-link:hover .related-title {
+		color: var(--accent);
+	}
+	.related-desc {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		line-clamp: 3;
+		overflow: hidden;
+	}
+	.related-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		list-style: none;
+		margin: var(--space-2) 0 0;
+		padding: 0;
+	}
+	.related-tags li {
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--text-subtle);
+	}
+	.related-tags li::before {
+		content: '#';
+	}
+
+	@media (max-width: 880px) {
+		.related-list {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

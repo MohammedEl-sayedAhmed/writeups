@@ -2,6 +2,19 @@
 import { type CollectionEntry, getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
 import { resolveDevtoUrl } from '../../lib/devto';
+import { findRelated, type RelatedPost } from '../../lib/related';
+
+function toRelated(entry: CollectionEntry<'blog'>): RelatedPost {
+	return {
+		id: entry.id,
+		title: entry.data.title,
+		description: entry.data.description,
+		pubDate: entry.data.pubDate,
+		tags: entry.data.tags
+			? entry.data.tags.split(',').map((t) => t.trim()).filter(Boolean)
+			: [],
+	};
+}
 
 export async function getStaticPaths() {
 	const posts = (await getCollection('blog')).sort(
@@ -13,6 +26,7 @@ export async function getStaticPaths() {
 			post,
 			prev: posts[index + 1] ?? null,
 			next: posts[index - 1] ?? null,
+			allPosts: posts,
 		},
 	}));
 }
@@ -21,15 +35,18 @@ type Props = {
 	post: CollectionEntry<'blog'>;
 	prev: CollectionEntry<'blog'> | null;
 	next: CollectionEntry<'blog'> | null;
+	allPosts: CollectionEntry<'blog'>[];
 };
 
-const { post, prev, next } = Astro.props as Props;
+const { post, prev, next, allPosts } = Astro.props as Props;
 const { Content, headings } = await render(post);
 
 const wordCount = post.body ? post.body.trim().split(/\s+/).length : 0;
 const readingMinutes = Math.max(1, Math.round(wordCount / 220));
 
 const devtoUrl = post.data.id ? await resolveDevtoUrl(post.data.id) : undefined;
+
+const related = findRelated(toRelated(post), allPosts.map(toRelated), 3);
 ---
 
 <BlogPost
@@ -40,6 +57,7 @@ const devtoUrl = post.data.id ? await resolveDevtoUrl(post.data.id) : undefined;
 	prev={prev ? { id: prev.id, title: prev.data.title } : null}
 	next={next ? { id: next.id, title: next.data.title } : null}
 	devtoUrl={devtoUrl}
+	related={related}
 >
 	<Content />
 </BlogPost>
