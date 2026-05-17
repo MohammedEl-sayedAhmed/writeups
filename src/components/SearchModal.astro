@@ -1,0 +1,212 @@
+---
+// Lazy-loaded Pagefind search dialog. Triggered by the magnifying-glass
+// button in the header or Cmd/Ctrl-K. The Pagefind UI bundle is fetched on
+// first open and reused on subsequent opens.
+---
+
+<dialog id="search-modal" class="search-modal" aria-label="Search">
+	<div class="search-modal-inner">
+		<header class="search-modal-head">
+			<p class="search-hint">
+				<kbd>Esc</kbd> to close · <kbd>Cmd</kbd>+<kbd>K</kbd> to toggle
+			</p>
+			<button type="button" class="search-modal-close" data-close-search aria-label="Close search">
+				<svg
+					viewBox="0 0 24 24"
+					width="20"
+					height="20"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<line x1="6" y1="6" x2="18" y2="18"></line>
+					<line x1="6" y1="18" x2="18" y2="6"></line>
+				</svg>
+			</button>
+		</header>
+		<div id="search-results"></div>
+	</div>
+</dialog>
+
+<script>
+	type PagefindUIConstructor = new (options: {
+		element: string | HTMLElement;
+		showSubResults?: boolean;
+		showImages?: boolean;
+		resetStyles?: boolean;
+	}) => unknown;
+
+	let initialized = false;
+
+	function loadScript(src: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			const existing = document.querySelector(`script[data-pagefind-loader="${src}"]`);
+			if (existing) {
+				resolve();
+				return;
+			}
+			const s = document.createElement('script');
+			s.src = src;
+			s.setAttribute('data-pagefind-loader', src);
+			s.onload = () => resolve();
+			s.onerror = () => reject(new Error(`failed to load ${src}`));
+			document.head.appendChild(s);
+		});
+	}
+
+	function loadStylesheet(href: string) {
+		if (document.querySelector(`link[data-pagefind-style="${href}"]`)) return;
+		const link = document.createElement('link');
+		link.rel = 'stylesheet';
+		link.href = href;
+		link.setAttribute('data-pagefind-style', href);
+		document.head.appendChild(link);
+	}
+
+	async function ensurePagefindUI() {
+		if (initialized) return;
+		const mount = document.getElementById('search-results');
+		if (!mount) return;
+		try {
+			loadStylesheet('/pagefind/pagefind-ui.css');
+			await loadScript('/pagefind/pagefind-ui.js');
+			const Ctor = (window as unknown as { PagefindUI?: PagefindUIConstructor }).PagefindUI;
+			if (!Ctor) throw new Error('PagefindUI not on window');
+			new Ctor({
+				element: '#search-results',
+				showSubResults: true,
+				showImages: false,
+				resetStyles: false,
+			});
+			initialized = true;
+		} catch (e) {
+			mount.textContent =
+				'Search index not built yet. Run `npm run build && npm run preview` to enable local search.';
+		}
+	}
+
+	function openSearch() {
+		const modal = document.getElementById('search-modal') as HTMLDialogElement | null;
+		if (!modal) return;
+		if (typeof modal.showModal === 'function' && !modal.open) {
+			modal.showModal();
+		}
+		void ensurePagefindUI();
+		// Focus the Pagefind input on next tick once it has mounted.
+		queueMicrotask(() => {
+			const input = modal.querySelector<HTMLInputElement>('input[type="text"], input[type="search"]');
+			input?.focus();
+		});
+	}
+
+	function closeSearch() {
+		const modal = document.getElementById('search-modal') as HTMLDialogElement | null;
+		if (modal?.open) modal.close();
+	}
+
+	// Open via the header trigger or keyboard shortcut.
+	document.addEventListener('click', (event) => {
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		if (target.closest('[data-open-search]')) {
+			openSearch();
+			return;
+		}
+		if (target.closest('[data-close-search]')) {
+			closeSearch();
+		}
+	});
+
+	document.addEventListener('keydown', (event) => {
+		const cmdOrCtrl = event.metaKey || event.ctrlKey;
+		if (cmdOrCtrl && event.key.toLowerCase() === 'k') {
+			event.preventDefault();
+			const modal = document.getElementById('search-modal') as HTMLDialogElement | null;
+			if (modal?.open) closeSearch();
+			else openSearch();
+		}
+	});
+</script>
+
+<style>
+	.search-modal {
+		width: min(640px, 92vw);
+		max-height: 80dvh;
+		margin: 10vh auto auto;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg);
+		color: var(--text);
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+	}
+	.search-modal::backdrop {
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(2px);
+	}
+	.search-modal-inner {
+		display: flex;
+		flex-direction: column;
+		max-height: 80dvh;
+		overflow: hidden;
+	}
+	.search-modal-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--border);
+	}
+	.search-hint {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--text-subtle);
+	}
+	.search-hint kbd {
+		display: inline-block;
+		padding: 1px 6px;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		color: var(--text);
+		background: var(--bg-subtle);
+		border: 1px solid var(--border);
+		border-radius: 3px;
+	}
+	.search-modal-close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		background: transparent;
+		border: 0;
+		color: var(--text-muted);
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+	}
+	.search-modal-close:hover {
+		color: var(--text);
+		background: var(--bg-subtle);
+	}
+
+	#search-results {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		padding: var(--space-3) var(--space-4);
+		/* Pagefind UI theming tokens; map onto our design system. */
+		--pagefind-ui-scale: 0.95;
+		--pagefind-ui-primary: var(--text);
+		--pagefind-ui-text: var(--text);
+		--pagefind-ui-background: var(--bg);
+		--pagefind-ui-border: var(--border);
+		--pagefind-ui-tag: var(--bg-subtle);
+		--pagefind-ui-border-width: 1px;
+		--pagefind-ui-border-radius: var(--radius-sm);
+		--pagefind-ui-font: var(--font-sans);
+	}
+</style>

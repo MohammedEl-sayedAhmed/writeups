@@ -303,16 +303,27 @@ const urls = shareUrls({ title, url, description });
 	}
 	.share-sheet {
 		/* Flex column with capped height so on short viewports (iOS Safari with
-		 visible URL bar) the X stays in view and the menu rows scroll inside. */
+		 visible URL bar) the X stays in view and the menu rows scroll inside.
+		 Horizontal containment: box-sizing keeps padding inside the 100% width,
+		 overflow-x clips any rogue child, and min-width:0 lets flex children
+		 shrink rather than push the close button off the right edge. */
 		display: flex;
 		flex-direction: column;
+		box-sizing: border-box;
 		width: 100%;
-		max-width: 520px;
+		max-width: min(520px, 100%);
 		max-height: 90dvh;
+		min-width: 0;
+		overflow-x: hidden;
 		background: var(--bg);
 		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		padding: var(--space-3) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom, 0));
+		padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0));
 		animation: share-slide 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+	}
+	@media (min-width: 480px) {
+		.share-sheet {
+			padding-inline: var(--space-5);
+		}
 	}
 	@media (min-width: 640px) {
 		.share-overlay {
@@ -341,14 +352,22 @@ const urls = shareUrls({ title, url, description });
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: var(--space-3);
+		min-width: 0;
 		margin-bottom: var(--space-2);
 	}
 	.sheet-head h2 {
+		flex: 1 1 0;
+		min-width: 0;
 		font-size: var(--text-lg);
 		font-weight: 700;
 		margin: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.sheet-close {
+		flex-shrink: 0;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;

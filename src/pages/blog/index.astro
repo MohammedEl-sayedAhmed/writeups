@@ -151,12 +151,14 @@ const slugifyTag = (t: string) => t.toLowerCase().replace(/\s+/g, '-');
 		transition:
 			color var(--transition-fast),
 			border-color var(--transition-fast),
-			background var(--transition-fast);
+			background var(--transition-fast),
+			transform var(--transition-fast);
 	}
 	.tag-chips a:hover {
 		color: var(--text);
-		border-color: var(--border-strong);
+		border-color: var(--accent);
 		background: var(--bg-elevated);
+		transform: translateY(-1px);
 	}
 
 	@media (max-width: 640px) {
