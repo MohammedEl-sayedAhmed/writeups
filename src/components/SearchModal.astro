@@ -8,7 +8,10 @@
 	<div class="search-modal-inner">
 		<header class="search-modal-head">
 			<p class="search-hint">
-				<kbd>Esc</kbd> to close · <kbd>Cmd</kbd>+<kbd>K</kbd> to toggle
+				<span class="hint-desktop">
+					<kbd>Esc</kbd> to close · <kbd>Cmd</kbd>+<kbd>K</kbd> to toggle
+				</span>
+				<span class="hint-mobile">Search</span>
 			</p>
 			<button type="button" class="search-modal-close" data-close-search aria-label="Close search">
 				<svg
@@ -27,7 +30,7 @@
 				</svg>
 			</button>
 		</header>
-		<div id="search-results"></div>
+		<div id="search-results"><p class="search-loading">Loading search…</p></div>
 	</div>
 </dialog>
 
@@ -75,6 +78,8 @@
 			await loadScript('/pagefind/pagefind-ui.js');
 			const Ctor = (window as unknown as { PagefindUI?: PagefindUIConstructor }).PagefindUI;
 			if (!Ctor) throw new Error('PagefindUI not on window');
+			// Clear the "Loading search…" placeholder before Pagefind UI mounts.
+			mount.replaceChildren();
 			new Ctor({
 				element: '#search-results',
 				showSubResults: true,
@@ -143,6 +148,13 @@
 		color: var(--text);
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
 	}
+	@media (max-width: 480px) {
+		.search-modal {
+			width: 96vw;
+			max-height: 86dvh;
+			margin: 6vh auto auto;
+		}
+	}
 	.search-modal::backdrop {
 		background: rgba(0, 0, 0, 0.5);
 		backdrop-filter: blur(2px);
@@ -152,6 +164,11 @@
 		flex-direction: column;
 		max-height: 80dvh;
 		overflow: hidden;
+	}
+	@media (max-width: 480px) {
+		.search-modal-inner {
+			max-height: 86dvh;
+		}
 	}
 	.search-modal-head {
 		display: flex;
@@ -176,17 +193,31 @@
 		border: 1px solid var(--border);
 		border-radius: 3px;
 	}
+	.hint-mobile {
+		display: none;
+	}
+	@media (max-width: 480px) {
+		.hint-desktop {
+			display: none;
+		}
+		.hint-mobile {
+			display: inline;
+			font-weight: 600;
+			color: var(--text);
+		}
+	}
 	.search-modal-close {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 32px;
-		height: 32px;
+		width: 36px;
+		height: 36px;
 		background: transparent;
 		border: 0;
 		color: var(--text-muted);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
+		flex-shrink: 0;
 	}
 	.search-modal-close:hover {
 		color: var(--text);
@@ -195,18 +226,44 @@
 
 	#search-results {
 		flex: 1 1 auto;
-		min-height: 0;
+		min-height: 200px;
 		overflow-y: auto;
 		padding: var(--space-3) var(--space-4);
-		/* Pagefind UI theming tokens; map onto our design system. */
+		/* Pagefind UI theming tokens; the input gets `--bg-elevated` so it
+		 stays visible against the modal's `--bg`. */
 		--pagefind-ui-scale: 0.95;
 		--pagefind-ui-primary: var(--text);
 		--pagefind-ui-text: var(--text);
-		--pagefind-ui-background: var(--bg);
+		--pagefind-ui-background: var(--bg-elevated);
 		--pagefind-ui-border: var(--border);
 		--pagefind-ui-tag: var(--bg-subtle);
 		--pagefind-ui-border-width: 1px;
 		--pagefind-ui-border-radius: var(--radius-sm);
 		--pagefind-ui-font: var(--font-sans);
+	}
+	.search-loading {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+
+	/* Belt-and-suspenders styling on the search input itself so it stays
+	 visible even if Pagefind UI's own stylesheet hasn't finished loading. */
+	:global(#search-results .pagefind-ui__search-input) {
+		background: var(--bg-elevated);
+		color: var(--text);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: 12px 14px;
+		/* >=16px prevents iOS Safari from zooming when the input is focused. */
+		font-size: 16px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+	:global(#search-results .pagefind-ui__form) {
+		position: relative;
+	}
+	:global(#search-results .pagefind-ui__search-clear) {
+		color: var(--text-muted);
 	}
 </style>
