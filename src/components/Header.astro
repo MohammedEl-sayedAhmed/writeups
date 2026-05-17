@@ -143,8 +143,13 @@ import { SITE_TITLE } from '../consts';
 </style>
 
 <script>
-	const btn = document.getElementById('theme-toggle');
-	btn?.addEventListener('click', () => {
+	// Document-level delegation: the toggle button is re-rendered on every Astro
+	// soft navigation, so binding to the button directly would lose the handler.
+	// Listening on document survives all navs.
+	document.addEventListener('click', (event) => {
+		const target = event.target;
+		if (!(target instanceof Element)) return;
+		if (!target.closest('#theme-toggle')) return;
 		const root = document.documentElement;
 		const current = root.getAttribute('data-theme');
 		const systemPrefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
