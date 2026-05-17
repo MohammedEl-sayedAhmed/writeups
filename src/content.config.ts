@@ -20,6 +20,10 @@ const blog = defineCollection({
 			tags: z.string().optional(),
 			published: z.boolean().optional().default(true),
 			canonical_url: z.string().url().optional(),
+			// Per-post toggle for the comments section. Defaults on; set
+			// `comments: false` in frontmatter to hide the Giscus widget on a
+			// specific post (e.g. for short announcements).
+			comments: z.boolean().optional().default(true),
 
 			// Written back by the cross-post action after the first successful publish; do not edit by hand.
 			id: z.number().optional(),

@@ -11,3 +11,11 @@ export const SOCIALS = {
 	devto: 'https://dev.to/mammar',
 	rss: '/rss.xml',
 } as const;
+
+// Giscus comments — values from giscus.app configurator. All four are public.
+export const GISCUS = {
+	repo: 'MohammedEl-sayedAhmed/writeups',
+	repoId: 'R_kgDOSfYyWA',
+	category: 'General',
+	categoryId: 'DIC_kwDOSfYyWM4C9Px9',
+} as const;

@@ -200,5 +200,6 @@ import { SITE_TITLE } from '../consts';
 		try {
 			localStorage.setItem('theme', next);
 		} catch (e) {}
+		document.dispatchEvent(new CustomEvent('theme-change', { detail: { theme: next } }));
 	});
 </script>
