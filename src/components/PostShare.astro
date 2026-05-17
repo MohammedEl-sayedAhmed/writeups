@@ -302,8 +302,13 @@ const urls = shareUrls({ title, url, description });
 		animation: share-fade 180ms ease;
 	}
 	.share-sheet {
+		/* Flex column with capped height so on short viewports (iOS Safari with
+		 visible URL bar) the X stays in view and the menu rows scroll inside. */
+		display: flex;
+		flex-direction: column;
 		width: 100%;
 		max-width: 520px;
+		max-height: 90dvh;
 		background: var(--bg);
 		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		padding: var(--space-3) var(--space-5) calc(var(--space-5) + env(safe-area-inset-bottom, 0));
@@ -316,6 +321,7 @@ const urls = shareUrls({ title, url, description });
 		.share-sheet {
 			border-radius: var(--radius-lg);
 			margin-block: var(--space-6);
+			max-height: calc(100dvh - 2 * var(--space-6));
 			animation: share-pop 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
 		}
 	}
@@ -363,6 +369,11 @@ const urls = shareUrls({ title, url, description });
 		list-style: none;
 		margin: 0;
 		padding: 0;
+		/* Sticky header stays visible while these rows scroll on short screens. */
+		overflow-y: auto;
+		flex: 1 1 auto;
+		min-height: 0;
+		overscroll-behavior: contain;
 	}
 	.sheet-list a,
 	.sheet-list button {
