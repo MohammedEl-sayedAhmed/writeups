@@ -1,0 +1,242 @@
+---
+import { fetchWebmentions, groupMentions } from '../lib/webmentions';
+
+interface Props {
+	url: string;
+}
+const { url } = Astro.props;
+
+const mentions = await fetchWebmentions(url, {
+	token: import.meta.env.WEBMENTION_IO_TOKEN,
+});
+const { likes, reposts, replies, mentions: cited } = groupMentions(mentions);
+const reactions = [...likes, ...reposts];
+const threaded = [...replies, ...cited];
+const hasAny = reactions.length + threaded.length > 0;
+---
+
+{
+	hasAny && (
+		<section class="webmentions" aria-labelledby="webmentions-heading">
+			<h2 id="webmentions-heading" class="wm-heading">
+				Reactions from around the web
+			</h2>
+
+			{reactions.length > 0 && (
+				<div class="wm-reactions">
+					{likes.length > 0 && (
+						<div class="wm-group">
+							<span class="wm-count">
+								<span aria-hidden="true">♥</span> {likes.length} like{likes.length === 1 ? '' : 's'}
+							</span>
+							<ul class="wm-avatars">
+								{likes.slice(0, 16).map((m) => (
+									<li>
+										<a
+											href={m.author?.url ?? '#'}
+											target="_blank"
+											rel="noopener"
+											title={m.author?.name ?? ''}
+										>
+											{m.author?.photo ? (
+												<img
+													src={m.author.photo}
+													alt={m.author.name ?? ''}
+													width="32"
+													height="32"
+													loading="lazy"
+												/>
+											) : (
+												<span class="wm-avatar-fallback">
+													{(m.author?.name ?? '?').charAt(0)}
+												</span>
+											)}
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+
+					{reposts.length > 0 && (
+						<div class="wm-group">
+							<span class="wm-count">
+								<span aria-hidden="true">↻</span> {reposts.length} repost{reposts.length === 1 ? '' : 's'}
+							</span>
+							<ul class="wm-avatars">
+								{reposts.slice(0, 16).map((m) => (
+									<li>
+										<a
+											href={m.author?.url ?? '#'}
+											target="_blank"
+											rel="noopener"
+											title={m.author?.name ?? ''}
+										>
+											{m.author?.photo ? (
+												<img
+													src={m.author.photo}
+													alt={m.author.name ?? ''}
+													width="32"
+													height="32"
+													loading="lazy"
+												/>
+											) : (
+												<span class="wm-avatar-fallback">
+													{(m.author?.name ?? '?').charAt(0)}
+												</span>
+											)}
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+				</div>
+			)}
+
+			{threaded.length > 0 && (
+				<ul class="wm-replies">
+					{threaded.map((m) => (
+						<li class="wm-reply">
+							<header class="wm-reply-head">
+								{m.author?.photo && (
+									<img
+										src={m.author.photo}
+										alt=""
+										width="36"
+										height="36"
+										loading="lazy"
+										class="wm-reply-avatar"
+									/>
+								)}
+								<a
+									class="wm-reply-author"
+									href={m.author?.url ?? '#'}
+									target="_blank"
+									rel="noopener"
+								>
+									{m.author?.name ?? 'Anonymous'}
+								</a>
+								<a class="wm-reply-link" href={m.url} target="_blank" rel="noopener">
+									View ↗
+								</a>
+							</header>
+							{m.content?.text && (
+								<p class="wm-reply-body">{m.content.text.slice(0, 280)}</p>
+							)}
+						</li>
+					))}
+				</ul>
+			)}
+		</section>
+	)
+}
+
+<style>
+	.webmentions {
+		max-width: var(--width-content);
+		margin: var(--space-12) auto var(--space-8);
+		padding-top: var(--space-8);
+		padding-inline: var(--gutter);
+		border-top: 1px solid var(--border);
+	}
+	.wm-heading {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-6);
+	}
+
+	.wm-reactions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-6);
+		margin-bottom: var(--space-8);
+	}
+	.wm-group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.wm-count {
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+	}
+	.wm-avatars {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.wm-avatars img,
+	.wm-avatar-fallback {
+		display: block;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		border: 1px solid var(--border);
+		object-fit: cover;
+	}
+	.wm-avatar-fallback {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		background: var(--bg-subtle);
+		color: var(--text-muted);
+		text-transform: uppercase;
+	}
+
+	.wm-replies {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+	.wm-reply {
+		padding: var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--bg-elevated);
+	}
+	.wm-reply-head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+	.wm-reply-avatar {
+		border-radius: 50%;
+		border: 1px solid var(--border);
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.wm-reply-author {
+		font-weight: 600;
+		color: var(--text);
+		text-decoration: none;
+		font-size: var(--text-sm);
+	}
+	.wm-reply-link {
+		margin-left: auto;
+		font-size: var(--text-xs);
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+	.wm-reply-link:hover {
+		color: var(--text);
+	}
+	.wm-reply-body {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		line-height: 1.55;
+	}
+</style>

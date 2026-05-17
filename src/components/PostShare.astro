@@ -302,19 +302,17 @@ const urls = shareUrls({ title, url, description });
 		animation: share-fade 180ms ease;
 	}
 	.share-sheet {
-		/* Flex column with capped height so on short viewports (iOS Safari with
-		 visible URL bar) the X stays in view and the menu rows scroll inside.
-		 Horizontal containment: box-sizing keeps padding inside the 100% width,
-		 overflow-x clips any rogue child, and min-width:0 lets flex children
-		 shrink rather than push the close button off the right edge. */
+		/* Flex column with capped height so menu rows scroll inside on short
+		 viewports. `position: relative` is the anchor for the absolutely-
+		 positioned close button, which guarantees the X stays in the top-right
+		 regardless of flex/overflow behavior. */
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		box-sizing: border-box;
 		width: 100%;
 		max-width: min(520px, 100%);
 		max-height: 90dvh;
-		min-width: 0;
-		overflow-x: hidden;
 		background: var(--bg);
 		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0));
@@ -349,16 +347,12 @@ const urls = shareUrls({ title, url, description });
 		}
 	}
 	.sheet-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		min-width: 0;
+		/* Pad the right side so the heading text doesn't overlap the absolutely-
+		 positioned close button. */
+		padding-right: 52px;
 		margin-bottom: var(--space-2);
 	}
 	.sheet-head h2 {
-		flex: 1 1 0;
-		min-width: 0;
 		font-size: var(--text-lg);
 		font-weight: 700;
 		margin: 0;
@@ -367,15 +361,17 @@ const urls = shareUrls({ title, url, description });
 		white-space: nowrap;
 	}
 	.sheet-close {
-		flex-shrink: 0;
+		position: absolute;
+		top: var(--space-3);
+		right: var(--space-3);
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 32px;
-		height: 32px;
-		background: transparent;
-		border: 0;
-		color: var(--text-muted);
+		width: 40px;
+		height: 40px;
+		background: var(--bg-subtle);
+		border: 1px solid var(--border);
+		color: var(--text);
 		border-radius: var(--radius-sm);
 		cursor: pointer;
 	}
