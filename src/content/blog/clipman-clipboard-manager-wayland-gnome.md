@@ -5,7 +5,6 @@ pubDate: May 22 2026
 tags: 'linux, opensource, python, gnome, wayland, dbus, ci-cd'
 published: true
 canonical_url: 'https://mammar.pages.dev/blog/clipman-clipboard-manager-wayland-gnome/'
-id: ''
 date: '2026-05-22T20:06:01Z'
 ---
 
