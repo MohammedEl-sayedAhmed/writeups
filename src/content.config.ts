@@ -18,6 +18,13 @@ const blog = defineCollection({
 			// Cross-post fields consumed by .github/workflows/crosspost.yml (via sinedied/publish-devto).
 			// All optional — omit them and a post is Astro-only.
 			tags: z.string().optional(),
+			// dev.to imposes stricter tag rules than the site: maximum 4 tags
+			// and lowercase alphanumeric only (no hyphens, no spaces). When a
+			// post needs a richer site-side tag set, set `devto_tags` to the
+			// dev.to-safe subset; the crosspost workflow swaps `tags` → this
+			// value before invoking publish-devto and restores after. Posts
+			// whose `tags` already satisfy dev.to's rules can omit this field.
+			devto_tags: z.string().optional(),
 			published: z.boolean().optional().default(true),
 			canonical_url: z.string().url().optional(),
 			// Per-post toggle for the comments section. Defaults on; set

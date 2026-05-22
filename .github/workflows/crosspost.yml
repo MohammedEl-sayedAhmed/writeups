@@ -49,6 +49,18 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # dev.to's article API caps tags at 4 entries and rejects anything that
+      # isn't lowercase-alphanumeric (no hyphens). The site's `tags:` field
+      # can be richer. When a post sets a `devto_tags:` value in its
+      # frontmatter, swap `tags` to that lean value before publish-devto
+      # sees it; restore afterwards in a separate commit so main keeps the
+      # rich site-side set.
+      - name: Swap rich tags -> devto_tags for crosspost
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python3 .github/scripts/swap-tags.py to-devto \
+            $(find src/content/blog -name '*.md' -print)
+
       - name: Publish articles to dev.to
         if: steps.gate.outputs.skip != 'true'
         uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85 # v2
@@ -58,3 +70,30 @@ jobs:
           files: 'src/content/blog/**/*.md'
           branch: main
           conventional_commits: true
+
+      # Always run: even on publish failure we want the rich `tags:` value
+      # back on disk so the next workflow invocation does not see a swapped
+      # file. publish-devto commits only on success, so on failure this
+      # step is a no-op as far as git history goes (the working tree gets
+      # reset to the rich set and nothing is pushed).
+      - name: Restore rich tags after crosspost
+        if: always() && steps.gate.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          # Pull whatever publish-devto just pushed (the lean-tags + id
+          # commit) so our restore lands on top of it cleanly.
+          git pull --ff-only origin main || true
+          python3 .github/scripts/swap-tags.py restore \
+            $(find src/content/blog -name '*.md' -print)
+          # Only commit when there is actually a tags-line delta to ship.
+          if ! git diff --quiet src/content/blog/; then
+            git -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                add src/content/blog/
+            git -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit -m 'chore(crosspost): restore rich tags after dev.to publish'
+            git push origin HEAD:main
+          else
+            echo 'no tags drift to restore'
+          fi
