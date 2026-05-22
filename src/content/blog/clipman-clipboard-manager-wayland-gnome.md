@@ -19,7 +19,7 @@ This writeup is the story of the parts that took the longest to get right: how a
 - Wayland deliberately does not let one app spy on another app's clipboard. Building a clipboard *manager* on top of that takes a privileged listener that the user has explicitly enabled — in our case, a small GNOME Shell extension that subscribes to `Meta.Selection`'s `owner-changed` signal and forwards new entries to a Python daemon over D-Bus.
 - The daemon stores history in `~/.local/share/clipman/clipman.db` (SQLite, WAL), deduplicates by SHA256, and exposes a tiny D-Bus surface so the keybinding (`Super+V`) and the extension can both talk to it.
 - Privacy: incognito mode, regex-based sensitive-content detection with 30-second auto-clear, `0o700` data dir and `0o600` image files, parameterised SQL, no `shell=True`, no telemetry. The only network egress is one anonymous `GET` per day to the GitHub Releases API to check for a newer version, and it is opt-out.
-- The project ships through five channels (PyPI, Snap, AUR, `.deb`, `.rpm`) plus a Flathub submission pending review and the GNOME Extensions website, with a CI/CD harness that SHA-pins every third-party action, publishes to PyPI via OIDC trusted publishing instead of a long-lived token, and ratchets CodeQL findings so pre-existing noise can't drown out a new regression.
+- The project ships through five channels (PyPI, Snap, AUR, `.deb`, `.rpm`) plus the GNOME Extensions website, with a CI/CD harness that SHA-pins every third-party action, publishes to PyPI via OIDC trusted publishing instead of a long-lived token, and ratchets CodeQL findings so pre-existing noise can't drown out a new regression.
 - All of which is more work than the surface implies — and every paragraph below was a thing I had to actually figure out, not a thing I read about and copied.
 
 ## The pain point
@@ -40,37 +40,58 @@ I wanted a tool that was Wayland-first, didn't flicker, didn't poll, didn't ship
 
 ## Background, in seven short sections
 
-Before the architecture: a short tour of the protocols and concepts the rest of this post leans on. If you already know D-Bus, Wayland, GNOME Shell extensions, and SemVer, **skip ahead to *The architecture*.**
+A short tour of the pieces the rest of this post relies on. If you already know D-Bus, Wayland, GNOME Shell extensions, and SemVer, **skip ahead to *The architecture*.**
 
-### 1. Wayland vs X11, in one paragraph
+### 1. Wayland vs X11
 
-X11 is a 1984 client/server protocol where applications connect to a long-running display server, and the server forwards both input events and clipboard data globally. Wayland is a 2008-onward replacement where the *compositor* (the program that draws your desktop) is also the server, and applications communicate with it directly via a small, capability-oriented protocol. Two practical consequences: under Wayland, one app cannot read another app's input, window contents, or clipboard without a compositor-mediated grant; and any "global" feature a clipboard manager needs has to go through the compositor or a compositor extension instead of being a plain client of the display server ([Wayland vs X11 comparison](https://theserverhost.com/blog/post/x11-vs-wayland)).
+X11 is the older Linux display protocol, from 1984. Apps connect to a long-running display server, and the server passes input events and clipboard data between them. Anything on that server can see anything else: one app can read another app's keystrokes, snoop its window, or read its clipboard, with no permission needed.
 
-### 2. What D-Bus is and why every Linux desktop tool uses it
+Wayland is the modern replacement. The *compositor* — the program that draws your desktop — is also the server, and apps talk to it directly. Apps no longer talk to each other through a shared bus. So one app can't read another app's input, window contents, or clipboard unless the compositor explicitly hands it over ([Wayland vs X11 comparison](https://theserverhost.com/blog/post/x11-vs-wayland)).
 
-D-Bus is a local-machine message bus standardised by freedesktop.org ([dbus-specification](https://dbus.freedesktop.org/doc/dbus-specification.html)). It's how desktop programs talk to each other without inventing a private socket protocol per pair. Two flavors: a *system bus* for OS-level services (NetworkManager, systemd-logind, udisks) and a *session bus* per logged-in user for desktop apps (GNOME Shell, the screenshot tool, the notifications service). Every bus exposes named objects with typed methods, and any program on the bus can call them — the bus *is* the trust boundary. Clipman uses the session bus for everything; nothing it does requires root, and nothing reaches the system bus.
+The practical consequence for a clipboard manager: any "watch the global clipboard" feature has to be built into the compositor or into something the compositor trusts. A normal app can't just listen.
+
+### 2. What D-Bus is
+
+D-Bus is the local message bus that desktop Linux apps use to talk to each other ([D-Bus specification](https://dbus.freedesktop.org/doc/dbus-specification.html)). Think of it as a switchboard inside your machine: anyone can dial a number, and the program that owns that number picks up.
+
+There are two buses. The *system bus* is for OS-level services like NetworkManager and udisks. The *session bus* is per logged-in user and is what desktop apps use — GNOME Shell, the screenshot tool, the notifications service. Clipman lives entirely on the session bus, never on the system bus. Nothing it does needs root.
 
 ### 3. What a GNOME Shell extension is
 
-A GNOME Shell extension is a small ES module loaded *into* GNOME Shell itself ([GJS extension guide](https://gjs.guide/extensions/)). It runs in the same process and the same JavaScript runtime (gjs, a SpiderMonkey-based runtime with bindings for GNOME platform libraries) that draws your top bar and overview. It is **not** a Firefox extension or a browser extension — it has full access to compositor APIs, can listen for window-manager events, can synthesize keystrokes, and can own a D-Bus name. That's why GNOME Shell asks you to log out and back in when you install or update one; you are loading code into a process you can't restart in place.
+A GNOME Shell extension is a small piece of JavaScript that gets loaded *inside* GNOME Shell itself ([GJS extension guide](https://gjs.guide/extensions/)). GNOME Shell is the program drawing your top bar and overview, and it has a built-in JavaScript runtime called gjs (the same kind of engine Firefox uses, with bindings to GNOME's libraries). An extension runs in that same process.
 
-### 4. SemVer in practice for an app that talks to other processes
+It is **not** a Firefox or browser extension. It can see and change things the compositor itself can — listen for window events, synthesize keystrokes, talk to D-Bus. That's also why installing or updating one usually requires logging out and back in: you're loading code into a running program that has no good way to reload itself.
 
-[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) defines MAJOR as "incompatible API changes", MINOR as "backward-compatible additions", PATCH as "backward-compatible bug fixes". For a *library*, "API" means "the functions you call". For an *application* like Clipman, there is no Python API for callers — but there *are* contracts: the D-Bus methods other processes call, the SQLite schema on disk, the supported Python and GNOME Shell versions. So a MAJOR bump means "something on those contracts changed in a way that requires a downstream rebuild or a user-visible migration". I wrote that out as [ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md) so packagers can predict from a tag alone whether they need to do anything.
+### 4. SemVer for an app
 
-### 5. PyPI, Snap, AUR, Flathub, `.deb`/`.rpm` — five distinct mental models
+[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) defines a version `MAJOR.MINOR.PATCH`. A MAJOR bump means a breaking change. A MINOR bump means a backward-compatible addition. A PATCH bump means a bug fix.
 
-PyPI is a *language* package index: `pip` puts Python code into a virtualenv. Snap and Flathub are *application* distribution: a single confined bundle with its own runtime, that the store auto-refreshes. AUR is *recipe* distribution: PKGBUILDs (build scripts) that compile from source on the user's machine ([Arch wiki: AUR](https://wiki.archlinux.org/title/Arch_User_Repository)). `.deb` and `.rpm` are *system* packages: native to Debian and Fedora families, installed by the distro's package manager into system paths. The same release of Clipman has to land in all five with appropriate caveats, because no single channel reaches everyone — and the audience for each channel doesn't think about the other four.
+That's straightforward for a library, where "API" means "the functions other code calls". Clipman has no such API — it's an app. But it does have contracts: the D-Bus methods other processes call, the SQLite schema on disk, which Python and GNOME Shell versions it supports. So I wrote out which kinds of changes count as MAJOR for clipman in [ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md), so distro packagers can tell from a tag alone whether a release needs special handling.
+
+### 5. PyPI, Snap, AUR, `.deb`/`.rpm` — different ways to install Linux software
+
+Linux doesn't have one app store. It has several, each with a different mental model.
+
+- **PyPI** is a *language* package index. `pip install` drops Python code into a Python environment.
+- **Snap** is *application* distribution. One signed bundle with its own runtime; the store auto-refreshes it on your machine.
+- **AUR** is *recipe* distribution for Arch Linux. The published artifact is a build script ([PKGBUILD](https://wiki.archlinux.org/title/Arch_User_Repository)) that compiles the app on your machine.
+- **`.deb`** and **`.rpm`** are *system* packages. Native to Debian and Fedora families; installed by the distro's own package manager into system paths.
+
+Clipman ships through all four, because no single one reaches everyone — Arch users don't `pip install`, PyPI users don't install snaps, Fedora users want an `rpm`.
 
 ### 6. OIDC trusted publishing for PyPI
 
-The traditional way to publish a Python package from CI is to put a long-lived PyPI API token into a GitHub repository secret. That secret is then reachable from any workflow that requests `secrets:` access, lives until manually rotated, and would leak in any compromise of the repo's secrets store. PyPI's *trusted publishing* swaps that for a per-job OpenID Connect exchange: PyPI is told "GitHub's OIDC issuer is allowed to publish project X when workflow Y runs on repo Z in environment E", and the workflow asks GitHub to mint a short-lived OIDC token at publish time. No long-lived token exists ([PyPI Trusted Publishers docs](https://docs.pypi.org/trusted-publishers/)). Clipman publishes this way, which is recorded in [ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md).
+For years the standard way to publish a Python package from CI was to put a long-lived PyPI API token into GitHub Secrets. That works, but the token sits there forever, and if your repo's secrets ever leak, an attacker can publish to PyPI as you until you notice.
+
+PyPI's *trusted publishing* replaces the long-lived token with a short-lived one minted per job ([PyPI Trusted Publishers docs](https://docs.pypi.org/trusted-publishers/)). The way it works: PyPI is configured once to trust GitHub's OIDC issuer, and only for a specific repo, workflow, and environment. At publish time, GitHub gives the workflow a fresh token that's valid for minutes. There is no long-lived secret anywhere. Clipman publishes this way per [ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md).
 
 ### 7. SHA-pinning GitHub Actions
 
-When a workflow says `uses: actions/checkout@v4`, GitHub resolves `v4` to whatever commit the upstream maintainer has the `v4` tag pointing at *right now*. If that maintainer's account is compromised and someone force-pushes the tag, your next workflow run executes the attacker's code with all your workflow's secrets. That has happened ([changed-files supply-chain incident](https://www.stepsecurity.io/blog/pinning-github-actions-for-enhanced-security-a-complete-guide)). The mitigation is to pin every third-party action to a full 40-character commit SHA, so the reference is immutable. Dependabot then keeps the pins current. Clipman pins every action this way per [ADR 0003](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0003-sha-pin-github-actions.md).
+When a workflow says `uses: actions/checkout@v4`, GitHub looks up whatever commit the upstream maintainer has the `v4` tag pointing at *right now*. If that maintainer's account gets compromised and someone moves the tag, your next workflow run executes the attacker's code with access to all your workflow's secrets. This has actually happened ([changed-files supply-chain incident](https://www.stepsecurity.io/blog/pinning-github-actions-for-enhanced-security-a-complete-guide)).
 
-End of background. From here on I assume those concepts.
+The fix is to pin to a 40-character commit SHA instead of a tag. A commit SHA can't be re-pointed. Dependabot then keeps the pins current with weekly bumps. Clipman pins every action this way per [ADR 0003](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0003-sha-pin-github-actions.md).
+
+End of background.
 
 ## The architecture
 
@@ -168,7 +189,7 @@ A flagged entry gets stored with `sensitive = 1`, hidden from the searchable his
 
 > *No telemetry.* The check must not send any user data, identifiers, cookies, or anything beyond what an anonymous web visitor would fetch.
 > *No auto-update.* We notify and link; we don't download or install.
-> *Opt-out friendly.* Snap and Flathub users in particular don't need this — their package manager already refreshes — so it should default off there.
+> *Opt-out friendly.* Snap users in particular don't need this — the Snap Store already refreshes installed snaps — so it should default off there.
 
 That is the only egress. There is no analytics, no crash reporter, no telemetry pixel. The full assets/adversaries breakdown — what Clipman defends against, and what is intentionally out of scope (cold-boot forensics, kernel keyloggers as the same UID) — is in [docs/threat-model.md](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/threat-model.md).
 
@@ -184,11 +205,9 @@ Linux package distribution does not have a single answer. It has at least five.
 
 **`.deb` and `.rpm`** are produced by the release workflow using [`fpm`](https://github.com/jordansissel/fpm) and attached to the GitHub Release page. They install the Python module, `/usr/bin/clipman`, the `.desktop` file and the icon system-wide, but they do *not* install the per-user GNOME Shell extension or the `Super+V` keybinding — those are user-scoped and stay out of system packages. A `.deb` user runs `./install.sh` once after install to finish the per-user setup. This is documented in the README.
 
-**Flathub** is pending. The manifest is in the repo at `flathub/io.github.MohammedEl_sayedAhmed.Clipman.json`, the submission PR is open against [flathub/flathub](https://github.com/flathub/flathub), and Flathub maintainers will manually review it before merge ([Flathub submission docs](https://docs.flathub.org/docs/for-app-authors/submission)).
-
 **The GNOME Extensions website** ([extensions.gnome.org](https://extensions.gnome.org/extension/9407/clipman-clipboard-monitor/)) hosts the extension zip. EGO has its own review pipeline: an automated linter called Shexli flags patterns that need human attention before the extension is published. The first time I uploaded the extension, Shexli flagged it with `EGO-A-005 (manual_review): direct clipboard access via St.Clipboard.get_default() requires reviewer scrutiny` — which is *correct*, that is exactly what the extension does, and the human reviewer waved it through after reading the source. Every clipboard-related extension on EGO triggers the same finding; it's a "make sure a reviewer looks at this" gate, not a rejection.
 
-No single channel is sufficient. PyPI users don't install snaps; Arch users don't `pip install`; Snap users want a one-click install; Fedora users want an `rpm -i`; everyone-else-on-Flatpak wants Flathub. The build matrix is the cost of being installable.
+No single channel is sufficient. PyPI users don't install snaps; Arch users don't `pip install`; Snap users want a one-click install; Fedora users want an `rpm -i`. The build matrix is the cost of being installable.
 
 ## CI/CD as a security surface, not just plumbing
 
@@ -200,7 +219,7 @@ The other place a clipboard manager can fail its users is supply chain. If my Gi
 
 **CodeQL baseline ratchet.** [CodeQL](https://docs.github.com/en/code-security/code-scanning/managing-your-code-scanning-configuration/codeql-query-suites)'s `security-and-quality` query suite surfaces roughly eighteen pre-existing informational findings on `main` (best-effort `except: pass` blocks, cyclic imports, module-level prints) that are intentional and not defects. Out of the box those findings appear as annotations on *every* PR's *Files changed* tab, including PRs that don't touch the affected files, which trains reviewers to ignore the annotations entirely. The mitigation is a *baseline ratchet*: keep a fingerprint list of findings that exist on `main` on a dedicated orphan branch `security-baseline`, and fail a PR only if it introduces a fingerprint not in that list. New regressions block; pre-existing noise doesn't. The `security-baseline` branch is auto-refreshed on push to `main` and protected against manual tampering by a `baseline-guard` workflow that auto-reverts unauthorised pushes and opens a labelled security issue. Recorded in [ADR 0002](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0002-baseline-ratchet-for-codeql.md) and refined by [ADR 0008](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0008-ratchet-fingerprint-strategy.md) (which switched the fingerprint format from `rule:file:line` to SARIF `partialFingerprints.primaryLocationLineHash`, so unrelated line-shifts above an existing finding don't read as new findings).
 
-**Step-Security `harden-runner`** is the first step on every job, with `egress-policy: audit`. In audit mode the action installs eBPF hooks at the kernel level that log every outbound network connection from the runner ([StepSecurity docs](https://docs.stepsecurity.io/harden-runner)) without blocking anything. The audit log is the forensic trail if something does slip through. "Block" mode would refuse unknown egress entirely, which is the eventual goal, but enabling block requires an allow-list and the allow-list for a Python+GTK+Snap+Flatpak build is large enough that I haven't audited it yet.
+**Step-Security `harden-runner`** is the first step on every job, with `egress-policy: audit`. In audit mode the action installs eBPF hooks at the kernel level that log every outbound network connection from the runner ([StepSecurity docs](https://docs.stepsecurity.io/harden-runner)) without blocking anything. The audit log is the forensic trail if something does slip through. "Block" mode would refuse unknown egress entirely, which is the eventual goal, but enabling block requires an allow-list and the allow-list for a build that fans out to PyPI, Snap, AUR, `.deb`, and `.rpm` is large enough that I haven't audited it yet.
 
 **OIDC trusted publishing for PyPI** ([ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md)). There is no long-lived PyPI API token in this repo or in GitHub Secrets; PyPI accepts a per-job OIDC token minted by GitHub at publish time, scoped to the specific repository, workflow, environment, and job. A repo-wide secrets leak cannot push to PyPI; an attacker would have to compromise the GitHub OIDC infrastructure itself, or rename the workflow file to match the trusted-publisher configuration. The trade-off is one manual setup step at <https://pypi.org/manage/account/publishing/> per project, which is unavoidable but only happens once.
 
@@ -281,8 +300,6 @@ The cost is proportional. Most of the docs were written *alongside* the change t
 
 ## What's next
 
-**Flathub.** The submission PR is open against `flathub/flathub`. Once a Flathub volunteer reviewer signs off, Clipman becomes installable as `flatpak install flathub io.github.MohammedEl_sayedAhmed.Clipman` on any Linux desktop with Flatpak. The manifest already exists in the repo.
-
 **KDE support.** KDE Plasma's clipboard is implemented by Klipper, which is conceptually similar to our extension/daemon split but uses a different KWayland protocol surface. The fallback path (`wl-paste --watch`) works on KDE today but loses some XWayland-app coverage that the GNOME extension provides natively. A small KWayland equivalent of the GNOME extension is the right answer; it's on the long-tail roadmap.
 
 **Themes beyond Catppuccin.** The current dark/light pair is Catppuccin Mocha / Latte. The CSS is a template with `$variable` placeholders so a third-party theme is a 30-line file, but I haven't documented how to write one yet.
@@ -297,7 +314,7 @@ A few things stuck with me building this.
 
 **The choice of where to listen is the whole architecture.** Everything downstream of "subscribe to `Meta.Selection`'s `owner-changed` inside the Shell process" is mechanical. Everything downstream of "poll `wl-paste` in a loop" is a permanent rearguard action against flicker and missed copies and battery drain. The five hours I spent reading Mutter's source to find `Meta.Selection` are responsible for half the apparent quality of this app. When something feels like it should be impossible on a given platform, the question "what's the privileged thing that *can* do this, and how do I become its client?" is worth a long time at the whiteboard.
 
-**SemVer for an end-user app is a contract with downstreams, not users.** Users mostly don't read your version number. AUR maintainers, Flathub reviewers, snap rebuilders, distro packagers, translators — they read it constantly. Writing the policy down ([ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md)) is a kindness to the people whose job it is to ship your code.
+**SemVer for an end-user app is a contract with downstreams, not users.** Users mostly don't read your version number. AUR maintainers, snap rebuilders, distro packagers, translators — they read it constantly. Writing the policy down ([ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md)) is a kindness to the people whose job it is to ship your code.
 
 **SHA pins protect a future me that doesn't exist yet.** It would have been faster to use `@v4` everywhere and let GitHub re-resolve on every run. The cost of SHA-pinning is real (uglier diffs, more Dependabot PRs, the annotated-tag-SHA gotcha I hit in v1.0.5). The value is paid out in a single moment, *if and only if* an upstream maintainer's account gets compromised — and even one prevented incident pays for the entire cost. This is the canonical shape of a security investment, and it's a hard one to feel good about while you're doing it.
 
