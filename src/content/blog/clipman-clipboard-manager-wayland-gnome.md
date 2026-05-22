@@ -16,9 +16,9 @@ This writeup is the story of the parts that took the longest to get right: how a
 
 ## TL;DR
 
-- Wayland deliberately does not let one app spy on another app's clipboard. Building a clipboard *manager* on top of that takes a privileged listener that the user has explicitly enabled — in our case, a small GNOME Shell extension that subscribes to `Meta.Selection`'s `owner-changed` signal and forwards new entries to a Python daemon over D-Bus.
-- The daemon stores history in `~/.local/share/clipman/clipman.db` (SQLite, WAL), deduplicates by SHA256, and exposes a tiny D-Bus surface so the keybinding (`Super+V`) and the extension can both talk to it.
-- Privacy: incognito mode, regex-based sensitive-content detection with 30-second auto-clear, `0o700` data dir and `0o600` image files, parameterised SQL, no `shell=True`, no telemetry. The only network egress is one anonymous `GET` per day to the GitHub Releases API to check for a newer version, and it is opt-out.
+- Wayland deliberately does not let one app spy on another app's clipboard. Building a clipboard *manager* on top of that takes a privileged listener that the user has explicitly enabled — in our case, a small GNOME Shell extension that subscribes to `Meta.Selection`'s `owner-changed` signal and forwards new entries over D-Bus to a Python *daemon* (a background process that runs continuously, with no UI of its own).
+- The daemon stores history in `~/.local/share/clipman/clipman.db` — a SQLite database in WAL mode, so writers don't block readers — deduplicates by SHA256, and exposes a tiny D-Bus surface so the keybinding (`Super+V`) and the extension can both talk to it.
+- Privacy: incognito mode, regex-based sensitive-content detection with 30-second auto-clear, restrictive Unix file modes (`0o700` on the data directory means "only the owning user may even open it"; `0o600` on image files means "only the owning user may read or write"), parameterised SQL, no `shell=True`, no telemetry. The only network egress is one anonymous `GET` per day to the GitHub Releases API to check for a newer version, and it is opt-out.
 - The project ships through five channels (PyPI, Snap, AUR, `.deb`, `.rpm`) plus the GNOME Extensions website, with a CI/CD harness that SHA-pins every third-party action, publishes to PyPI via OIDC trusted publishing instead of a long-lived token, and ratchets CodeQL findings so pre-existing noise can't drown out a new regression.
 - All of which is more work than the surface implies — and every paragraph below was a thing I had to actually figure out, not a thing I read about and copied.
 
@@ -36,7 +36,7 @@ Three things broke that historical answer:
 
 Existing Wayland-aware tools (`wl-clipboard`'s `wl-paste --watch`, `clipman-wayland`, copyq's Wayland mode) are a real improvement, but each compromises somewhere — extra processes, focus stealing, flicker, missed copies in XWayland apps, or none of the privacy posture I wanted (auto-clear of sensitive content, restrictive permissions, no telemetry of any kind).
 
-I wanted a tool that was Wayland-first, didn't flicker, didn't poll, didn't ship its own browser-class runtime (no Electron), and treated the data on disk like it might be sensitive — because if you copy passwords twice a day for a year, your history file *is* sensitive.
+I wanted a tool that was Wayland-first, didn't flicker, didn't poll, didn't ship its own browser-class runtime — no Electron (the framework that bundles a private copy of Chromium with each app — that's what makes VSCode, Slack, and Discord large) — and treated the data on disk like it might be sensitive, because if you copy passwords twice a day for a year, your history file *is* sensitive.
 
 ## Background, in seven short sections
 
@@ -44,58 +44,74 @@ A short tour of the pieces the rest of this post relies on. If you already know 
 
 ### 1. Wayland vs X11
 
-X11 is the older Linux display protocol, from 1984. Apps connect to a long-running display server, and the server passes input events and clipboard data between them. Anything on that server can see anything else: one app can read another app's keystrokes, snoop its window, or read its clipboard, with no permission needed.
+X11 is the historical Linux display protocol. It dates back to 1984: every graphical application connects to a long-running *X server*, and the server brokers input, drawing, and clipboard selections between clients. The trust model is simple — everyone connected to the X server is assumed to be a friend. Concretely, that means any X client can read any other client's keystrokes, scrape its window contents, or inspect its clipboard, with no permission check involved. That assumption made sense in academia, where the people sharing a session knew each other; it stopped making sense the moment desktop Linux started running browsers, untrusted GUIs, and proprietary apps side by side.
 
-Wayland is the modern replacement. The *compositor* — the program that draws your desktop — is also the server, and apps talk to it directly. Apps no longer talk to each other through a shared bus. So one app can't read another app's input, window contents, or clipboard unless the compositor explicitly hands it over ([Wayland vs X11 comparison](https://theserverhost.com/blog/post/x11-vs-wayland)).
+Wayland, designed in 2008 and gradually deployed across distros since, replaces the X server with a single *compositor* process. The same program that draws your desktop is also the only thing applications can talk to. Apps no longer share a bus with each other. Reading another application's input, window pixels, or clipboard now requires an explicit grant from the compositor, usually tied to user focus or a user gesture ([Wayland vs X11 comparison](https://theserverhost.com/blog/post/x11-vs-wayland)).
 
-The practical consequence for a clipboard manager: any "watch the global clipboard" feature has to be built into the compositor or into something the compositor trusts. A normal app can't just listen.
+For a clipboard *manager*, that's both the win and the problem. The win is that nobody can quietly siphon what's on your clipboard. The problem is that a clipboard manager's entire job is to read the clipboard, all the time. So it can't be just any app sitting on the side — it has to be the compositor itself, or something the compositor explicitly trusts.
 
 ### 2. What D-Bus is
 
-D-Bus is the local message bus that desktop Linux apps use to talk to each other ([D-Bus specification](https://dbus.freedesktop.org/doc/dbus-specification.html)). Think of it as a switchboard inside your machine: anyone can dial a number, and the program that owns that number picks up.
+D-Bus is the local message bus that freedesktop.org defined for desktop programs to talk to each other ([D-Bus specification](https://dbus.freedesktop.org/doc/dbus-specification.html)). It's used everywhere on Linux: GNOME Shell, NetworkManager, the screenshot tool, the notifications service, and password managers all expose D-Bus interfaces. A program owns a *bus name* (something like `org.gnome.Shell`), exports objects at well-known paths under that name, and any other program can call methods on those objects. The signatures are typed, the calls are synchronous, and the whole thing acts as a local RPC layer for the desktop.
 
-There are two buses. The *system bus* is for OS-level services like NetworkManager and udisks. The *session bus* is per logged-in user and is what desktop apps use — GNOME Shell, the screenshot tool, the notifications service. Clipman lives entirely on the session bus, never on the system bus. Nothing it does needs root.
+There are two buses on every Linux system. The *system bus* is for OS-level services that all users share — NetworkManager, systemd-logind, udisks. The *session bus* is per logged-in user, and is where every desktop app lives — GNOME Shell, the notifications service, the screenshot tool, your password manager.
+
+Clipman lives entirely on the session bus. Nothing it does crosses to the system bus or requires root, which keeps the blast radius small.
 
 ### 3. What a GNOME Shell extension is
 
-A GNOME Shell extension is a small piece of JavaScript that gets loaded *inside* GNOME Shell itself ([GJS extension guide](https://gjs.guide/extensions/)). GNOME Shell is the program drawing your top bar and overview, and it has a built-in JavaScript runtime called gjs (the same kind of engine Firefox uses, with bindings to GNOME's libraries). An extension runs in that same process.
+GNOME Shell is the program that draws the top bar, the activities overview, and the workspace switcher. Under Wayland it is *also* the compositor for the entire GNOME session — the privileged process from the previous section — through an underlying C library called Mutter that handles the window management, the Wayland protocol implementation, and the input plumbing. Mutter does the low-level work; GNOME Shell adds the user interface on top, written in JavaScript on a runtime called `gjs`: essentially SpiderMonkey (the JavaScript engine from Firefox) wired up to GObject, so the JavaScript can call native GNOME libraries directly.
 
-It is **not** a Firefox or browser extension. It can see and change things the compositor itself can — listen for window events, synthesize keystrokes, talk to D-Bus. That's also why installing or updating one usually requires logging out and back in: you're loading code into a running program that has no good way to reload itself.
+A GNOME Shell extension is a JavaScript module that gets loaded into that runtime at session startup ([GJS extension guide](https://gjs.guide/extensions/)). Because it runs inside the Shell, it has the same reach the Shell does. It can listen for window-manager events, synthesize keystrokes through Clutter's virtual input devices, observe clipboard selections, and own D-Bus names. That reach is also why installing or upgrading an extension prompts you to log out and back in: there's no graceful way for a running Shell to swap out JavaScript modules it has already loaded.
+
+This matters in two ways. First, an extension is the natural home for "watch the global clipboard" — it's exactly the kind of code the compositor already trusts. Second, extensions are emphatically *not* browser extensions; the right mental model is closer to "a kernel module for your desktop" than to "userscript". A misbehaving extension can do real damage, which is why GNOME's extensions website reviews each one manually before publishing (more on that later).
 
 ### 4. SemVer for an app
 
-[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) defines a version `MAJOR.MINOR.PATCH`. A MAJOR bump means a breaking change. A MINOR bump means a backward-compatible addition. A PATCH bump means a bug fix.
+[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) numbers releases as `MAJOR.MINOR.PATCH`: MAJOR for incompatible changes, MINOR for backward-compatible additions, PATCH for bug fixes. For a library that's a clean specification — "incompatible" means "the API other code imports". Clipman is an end-user application; nobody is supposed to import it as a library, so the equivalent surface isn't a Python module.
 
-That's straightforward for a library, where "API" means "the functions other code calls". Clipman has no such API — it's an app. But it does have contracts: the D-Bus methods other processes call, the SQLite schema on disk, which Python and GNOME Shell versions it supports. So I wrote out which kinds of changes count as MAJOR for clipman in [ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md), so distro packagers can tell from a tag alone whether a release needs special handling.
+What it has *instead* is contracts external to its own code:
 
-### 5. PyPI, Snap, AUR, `.deb`/`.rpm` — different ways to install Linux software
+- The D-Bus methods other processes call.
+- The SQLite schema sitting in the user's home directory, which future versions of the daemon and any external tooling have to read.
+- The supported range of Python and GNOME Shell versions that downstream packagers build against.
 
-Linux doesn't have one app store. It has several, each with a different mental model.
+[ADR 0010](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0010-versioning-policy.md) writes those out as the contracts SemVer covers for clipman specifically. The point is so AUR maintainers and distro packagers can tell from a tag alone whether a release needs a rebuild against new system libraries, a one-shot schema migration, or a new extension version.
 
-- **PyPI** is a *language* package index. `pip install` drops Python code into a Python environment.
-- **Snap** is *application* distribution. One signed bundle with its own runtime; the store auto-refreshes it on your machine.
-- **AUR** is *recipe* distribution for Arch Linux. The published artifact is a build script ([PKGBUILD](https://wiki.archlinux.org/title/Arch_User_Repository)) that compiles the app on your machine.
-- **`.deb`** and **`.rpm`** are *system* packages. Native to Debian and Fedora families; installed by the distro's own package manager into system paths.
+### 5. PyPI, Snap, AUR, `.deb`/`.rpm`
 
-Clipman ships through all four, because no single one reaches everyone — Arch users don't `pip install`, PyPI users don't install snaps, Fedora users want an `rpm`.
+Unlike most operating systems, Linux doesn't have one app store. It has several, each with its own audience, mental model, and trade-offs. Clipman ships through four of them:
+
+- **PyPI** is the Python language package index. `pip install clipman-clipboard` resolves a wheel and drops it into a Python environment. Native to anyone who already has `pip`; useless to anyone who doesn't.
+- **Snap** is Canonical's application store. It publishes a single signed bundle that runs under strict confinement on the user's machine, and the Snap Store auto-refreshes installed snaps in the background — no user action required.
+- **AUR** is the [Arch User Repository](https://wiki.archlinux.org/title/Arch_User_Repository). It does *not* host binaries. It hosts `PKGBUILD` build scripts that helpers like `yay` or `paru` execute locally to compile the package from upstream sources, then install via `pacman`.
+- **`.deb`** and **`.rpm`** are the native package formats for Debian/Ubuntu and Fedora/RHEL respectively. Installed with `apt install ./clipman_*.deb` or `dnf install ./clipman-*.rpm`, they drop files into system paths under `/usr/`.
+
+No single channel reaches everyone — Arch users don't `pip install`, PyPI users don't keep `snapd` running, Fedora users want an `rpm -i`. The release pipeline builds and ships through all four on every tag.
 
 ### 6. OIDC trusted publishing for PyPI
 
-For years the standard way to publish a Python package from CI was to put a long-lived PyPI API token into GitHub Secrets. That works, but the token sits there forever, and if your repo's secrets ever leak, an attacker can publish to PyPI as you until you notice.
+The conventional way to publish a Python package from CI is to mint a long-lived PyPI API token, paste it into a GitHub repository secret, and use it from a workflow's upload step. That works, and it's still how most projects do it. But the token sits in secrets storage until you manually rotate it, any workflow that requests `secrets:` access can read it, and if the repository's secrets ever leak — through a compromised dependency in a workflow, an accidental log dump, anything — an attacker can publish to PyPI as you until you notice and revoke.
 
-PyPI's *trusted publishing* replaces the long-lived token with a short-lived one minted per job ([PyPI Trusted Publishers docs](https://docs.pypi.org/trusted-publishers/)). The way it works: PyPI is configured once to trust GitHub's OIDC issuer, and only for a specific repo, workflow, and environment. At publish time, GitHub gives the workflow a fresh token that's valid for minutes. There is no long-lived secret anywhere. Clipman publishes this way per [ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md).
+PyPI's *trusted publishing* replaces that long-lived token with a short-lived OIDC token minted on the fly per upload ([PyPI Trusted Publishers docs](https://docs.pypi.org/trusted-publishers/)). The setup is one-time and out of band: in the PyPI project's publishing settings, you tell PyPI to trust GitHub's OpenID Connect issuer — but only for a specific repository plus workflow file plus deployment environment.
+
+At publish time the workflow asks GitHub for a fresh OIDC token (valid for minutes), hands it to PyPI, and PyPI verifies the claims embedded in it — the repo, the workflow, the environment — match the configured policy before accepting the upload.
+
+The end state: there is no long-lived PyPI credential in this repo or in GitHub Secrets at all. A repository-wide secrets leak cannot publish to PyPI; an attacker would have to compromise GitHub's OIDC infrastructure itself. Clipman publishes this way per [ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md).
 
 ### 7. SHA-pinning GitHub Actions
 
-When a workflow says `uses: actions/checkout@v4`, GitHub looks up whatever commit the upstream maintainer has the `v4` tag pointing at *right now*. If that maintainer's account gets compromised and someone moves the tag, your next workflow run executes the attacker's code with access to all your workflow's secrets. This has actually happened ([changed-files supply-chain incident](https://www.stepsecurity.io/blog/pinning-github-actions-for-enhanced-security-a-complete-guide)).
+A workflow line like `uses: actions/checkout@v4` looks up the `v4` tag every time the workflow runs — GitHub resolves it against whatever commit the upstream maintainer has the tag pointing at right now, and executes that commit's code. If the upstream maintainer's account is compromised and someone force-pushes the tag to a malicious commit, the next time your workflow runs it will execute the attacker's code, with whatever access (secrets, OIDC tokens, write permissions) the workflow has been granted.
 
-The fix is to pin to a 40-character commit SHA instead of a tag. A commit SHA can't be re-pointed. Dependabot then keeps the pins current with weekly bumps. Clipman pins every action this way per [ADR 0003](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0003-sha-pin-github-actions.md).
+This is not theoretical. In 2025 it happened to `tj-actions/changed-files`: every workflow that referenced the action by tag instead of a SHA exfiltrated its caller's secrets to public build logs the next time it ran ([incident writeup](https://www.stepsecurity.io/blog/pinning-github-actions-for-enhanced-security-a-complete-guide)).
+
+The mitigation is to pin every third-party action to its full 40-character commit SHA, like `uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7`. A commit SHA is content-addressed — it's derived from the commit's contents, so an attacker can't "move" it the way they can move a tag. Forging a new commit with the same SHA would require a SHA-1 collision. The cost is staleness: SHAs do not move, so upstream security fixes do not reach the workflow until Dependabot opens a bump PR and someone reviews it. Clipman pins every action this way per [ADR 0003](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0003-sha-pin-github-actions.md).
 
 End of background.
 
 ## The architecture
 
-Clipman is two cooperating processes plus a database. There is a daemon (`clipman.py` plus the `clipman/` Python package) that runs as a `systemd --user` service and owns the popup window, the storage, the settings, and the D-Bus surface. There is a GNOME Shell extension (`extension/extension.js`) that lives inside the running Shell process and watches the clipboard. They talk over D-Bus on the session bus.
+Clipman is two cooperating processes plus a database. There is a daemon — a long-running background process with no UI of its own (`clipman.py` plus the `clipman/` Python package) — that runs as a `systemd --user` service and owns the popup window, the storage, the settings, and the D-Bus surface. There is a GNOME Shell extension (`extension/extension.js`) that lives inside the running Shell process and watches the clipboard. They talk over D-Bus on the session bus.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/architecture.svg"
@@ -126,11 +142,23 @@ this._ownerChangedId = this._selection.connect(
 );
 ```
 
-When the signal fires the extension reads the new content with a MIME-type fallback chain (`text/plain;charset=utf-8` → `UTF8_STRING` → `text/plain` → `STRING`, because different apps name the same UTF-8 text differently — XWayland apps are especially fond of `UTF8_STRING`) and forwards the result to the daemon over D-Bus. Full file: [extension/extension.js](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/extension/extension.js).
+When the signal fires the extension reads the new content. A MIME type is the label an application attaches to a piece of clipboard data so other apps know how to interpret it — `text/plain;charset=utf-8` is "UTF-8 text", `image/png` is "a PNG image", and so on. The catch is that different apps name the same UTF-8 text under different labels for historical reasons: GTK apps prefer `text/plain;charset=utf-8`, X11-era apps prefer `UTF8_STRING`, and a few hold-outs only set the bare `STRING`. So the extension tries them in priority order, falling through to the next on each miss:
+
+```javascript
+// extension/extension.js
+const mimeTypes = [
+    'text/plain;charset=utf-8',
+    'UTF8_STRING',
+    'text/plain',
+    'STRING',
+];
+```
+
+Whichever label produces non-empty bytes wins, and the result is forwarded to the daemon over D-Bus. Full file: [extension/extension.js](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/extension/extension.js).
 
 There is also a 150 ms debounce on the read. Some apps update the clipboard several times in rapid succession during a single `Ctrl+C` (Electron apps are repeat offenders), and reading too eagerly returns an empty or stale buffer. Waiting 150 ms before reading lets the new owner settle.
 
-For compositors that don't run this extension — KDE, Sway, Hyprland — the daemon still works: on startup it checks for the extension's D-Bus name (`org.gnome.Shell.Extensions.clipman`) and, if it isn't present, spawns `wl-paste --watch echo CLIP_CHANGED` as a fallback. The fallback is in [`clipman/clipboard_monitor.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/clipboard_monitor.py); it parses sentinel lines off the subprocess's stdout via `GLib.io_add_watch`, restarts up to five times on crash, and otherwise stays out of the way. The extension is preferred where it's available; the fallback is the consolation prize.
+For compositors that don't run this extension — KDE Plasma, Sway, Hyprland, and the rest of the non-GNOME desktops on Linux — the daemon still works: on startup it checks for the extension's D-Bus name (`org.gnome.Shell.Extensions.clipman`) and, if it isn't present, spawns `wl-paste --watch echo CLIP_CHANGED` as a fallback. The fallback is in [`clipman/clipboard_monitor.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/clipboard_monitor.py); it parses sentinel lines off the subprocess's stdout via `GLib.io_add_watch`, restarts up to five times on crash, and otherwise stays out of the way. The extension is preferred where it's available; the fallback is the consolation prize.
 
 ### The D-Bus contract
 
@@ -144,7 +172,7 @@ The daemon's interface lives at bus name `com.clipman.Daemon`, object path `/com
 | `Quit()` | `() → ()` | The uninstaller |
 | `NewEntry(s content_type, s content)` | `(ss) → ()` | The extension (or `wl-paste --watch` fallback) every time the clipboard changes |
 
-The implementation is forty-odd lines in [`clipman/dbus_service.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/dbus_service.py); it does nothing except marshal between D-Bus and the GTK window / monitor.
+D-Bus types are written compactly: each letter in the signature names one argument's type. `s` is a string. `(ss)` means "two strings in"; `()` on the right means "nothing comes back". So `NewEntry` takes a content-type string ("text" or "image") plus the actual content, and returns nothing. The implementation lives in [`clipman/dbus_service.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/dbus_service.py) and does nothing except marshal between D-Bus and the GTK window / monitor.
 
 The extension exposes a complementary interface at `org.gnome.Shell.Extensions.clipman`. The daemon calls into it to ask the Shell — which has the privileged Clutter virtual-keyboard device, and the daemon does not — to synthesise the paste keystroke after the user clicks a history entry:
 
@@ -161,7 +189,7 @@ Both interfaces are unauthenticated. Access is gated by the user's session bus, 
 
 Everything is under `~/.local/share/clipman/`:
 
-- `clipman.db` — SQLite with WAL journaling on. WAL is chosen so the popup window can read history rows while the daemon writes new entries arriving from D-Bus callbacks.
+- `clipman.db` — SQLite with WAL (write-ahead logging) journaling on. In WAL mode, SQLite writes new data to a side file first and merges it into the main database later, which means readers don't block writers and vice versa. That matters here because the popup window reads history rows on every refresh while the daemon is writing new entries arriving from D-Bus callbacks; without WAL the two would serialise.
 - `images/` — image clipboard payloads written one file per content hash. The schema is `<hash>.<ext>`; the daemon validates magic bytes (PNG, JPEG, GIF, BMP, WebP) before saving.
 
 The schema is plain: an `entries` table (`id`, `content_type`, `content_text`, `image_path`, `content_hash UNIQUE`, `pinned`, `created_at`, `accessed_at`, `sensitive`), a `snippets` table for user-defined named snippets, and a `settings` table of typed key/value pairs.
@@ -172,7 +200,7 @@ Deduplication is content-addressed via SHA256. If you copy the same string twice
 
 The premise — *this app stores a record of everything you copy* — makes its privacy choices the most consequential thing about it. I want to be able to tell a friend "yes, install this, it's fine" without crossing my fingers.
 
-**The data directory is `0o700`. Image files are `0o600`.** The daemon `chmod`s both on every startup, even if the directory pre-existed, so a relaxed `umask` cannot quietly widen them. Files are created with `os.open(..., O_CREAT, 0o600)` rather than the default `open()` — the mode flag on `open()` is silently ignored by Python in cases that matter, and `os.open` is the only way to set the mode atomically.
+**The data directory is `0o700`. Image files are `0o600`.** Those are Unix permission modes written in octal: three digits for *owner / group / others*, each digit a bitmask of read (4), write (2), execute (1). `0o700` means "owner has full access; nobody else can even list the directory". `0o600` means "owner can read and write the file; nobody else can do anything with it". The daemon applies these with `chmod` (the Unix call to change a file's permissions) on every startup, even if the directory pre-existed, so a relaxed `umask` cannot quietly widen them. New image files are created with `os.open(..., O_CREAT, 0o600)` rather than the default `open()`, because that's the only way to set the mode atomically — opening with the default and `chmod`-ing after leaves a brief window where the file exists with the user's `umask` mode.
 
 **Sensitive entries auto-clear from the system clipboard 30 seconds after copy.** Detection lives in [`clipman/clipboard_monitor.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/clipboard_monitor.py) and is a deliberately blunt regex-style match — it errs on the side of flagging *more* things as sensitive, not fewer. The triggers include:
 
@@ -289,7 +317,7 @@ That is a lot of words for a one-person project. The honest reasons:
 - The CI harness is genuinely complex. If I am the only person who knows what `baseline-guard.yml` is for, the harness only works as long as my memory does, which is short.
 - Writing decisions down forces me to reread them. Half the time, writing the ADR is when I notice the decision was wrong.
 
-The cost is proportional. Most of the docs were written *alongside* the change they describe, in the same PR. The ones that came later (ARCHITECTURE, GOVERNANCE, the threat model) were each one focused afternoon.
+The cost is more concentrated than it looks. One of the ADRs (0007, the update-check posture) genuinely shipped *alongside* the change it describes, in the same feature PR. Most of the others were written after the fact, in a couple of docs-sweep PRs in May. The bulk of the prose docs — ARCHITECTURE, GOVERNANCE, maintaining, threat-model, ci-cd, dbus-api, translating — landed in a single afternoon on 2026-05-22 as seven back-to-back PRs in about fifteen minutes of merge time. So it wasn't continuous discipline; it was one extended sitting where I forced myself to write down what I'd been carrying in my head, while it was still fresh.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/dark-theme.png" alt="Dark theme" width="320">&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/light-theme.png" alt="Light theme" width="320">
