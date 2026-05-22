@@ -1,10 +1,27 @@
 name: Cross-post to dev.to
 
+# Paused 2026-05-23: the auto-trigger is disabled while we triage two
+# composition issues against dev.to and against this repo's branch
+# protection on main:
+#
+#   1. dev.to returned HTTP 422 on the Clipman writeup's initial publish
+#      even after the tag set was reduced to four lowercase-alphanumeric
+#      entries (see PR #20 + run 26317495543). At least one more body-side
+#      validation is failing and the action does not surface dev.to's
+#      response body, so we need a separate manual reproduction with
+#      DEVTO_TOKEN to identify the real cause.
+#
+#   2. main is a protected branch that requires changes via PR. Both
+#      publish-devto's id-writeback push and our own restore-rich-tags
+#      push were rejected by GH006. The workflow needs to commit through
+#      a PR rather than direct-to-main before it can be re-enabled.
+#
+# The push trigger is intentionally removed for now; the workflow is
+# only invocable manually via workflow_dispatch so the maintainer can
+# re-run it deliberately during triage. Once both issues are resolved
+# the push trigger should be restored.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/content/blog/**'
+  workflow_dispatch:
 
 # Default-deny at workflow level; the one job below grants only the minimum it needs.
 # Defense in depth: a step that doesn't declare permissions inherits nothing.
