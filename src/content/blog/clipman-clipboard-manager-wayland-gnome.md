@@ -2,7 +2,8 @@
 title: Building Clipman — a clipboard manager for Wayland that respects you
 description: 'How and why I built a clipboard history manager for Ubuntu/GNOME on Wayland, with the protocol stack explained for newcomers and the CI/CD security harness laid out for engineers. Pain points, real bugs, and what shipping to five distribution channels actually takes.'
 pubDate: May 22 2026
-tags: 'linux, opensource, python, wayland'
+tags: 'linux, opensource, python, gnome, wayland, dbus, ci-cd'
+devto_tags: 'linux, opensource, python, wayland'
 published: true
 canonical_url: 'https://mammar.pages.dev/blog/clipman-clipboard-manager-wayland-gnome/'
 date: '2026-05-22T20:06:01Z'
