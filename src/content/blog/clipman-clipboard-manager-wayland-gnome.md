@@ -115,7 +115,7 @@ End of background.
 Clipman is two cooperating processes plus a database. There is a daemon — a long-running background process with no UI of its own (`clipman.py` plus the `clipman/` Python package) — that runs as a `systemd --user` service and owns the popup window, the storage, the settings, and the D-Bus surface. There is a GNOME Shell extension (`extension/extension.js`) that lives inside the running Shell process and watches the clipboard. They talk over D-Bus on the session bus.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/architecture.svg"
+  <img src="https://mammar.pages.dev/clipman-architecture.png"
        alt="Clipman architecture diagram"
        width="100%">
 </p>
@@ -205,7 +205,7 @@ The premise — *this app stores a record of everything you copy* — makes its 
 
 **Sensitive entries auto-clear from the system clipboard 30 seconds after copy.** Detection lives in [`clipman/clipboard_monitor.py`](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/clipman/clipboard_monitor.py) and is a deliberately blunt regex-style match — it errs on the side of flagging *more* things as sensitive, not fewer. The triggers include:
 
-- Known token prefixes: `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sk-`, `sk_live_`, `pk_live_`, `Bearer `, `eyJ` (JWT), `xox` (Slack), `AKIA` (AWS access keys), `AIza` (Google API keys), `npm_`, `-----BEGIN ` (PEM blocks).
+- Known token prefixes: `ghp_`, `gho_`, `ghs_`, `github_pat_`, `sk-`, `sk_live_`, `pk_live_`, `eyJ` (JWT), `xox` (Slack), `AKIA` (AWS access keys), `AIza` (Google API keys), `npm_`, `-----BEGIN ` (PEM blocks), and `Bearer ` (HTTP Authorization-header tokens).
 - Database connection strings: `postgresql://`, `mysql://`, `mongodb://`, `redis://`.
 - SSH public-key prefixes: `ssh-rsa `, `ssh-ed25519 `.
 - A heuristic for "looks like a password": single-line, 8–128 chars, no whitespace, contains three of {lowercase, uppercase, digit, punctuation}.
@@ -250,7 +250,7 @@ The other place a clipboard manager can fail its users is supply chain. If my Gi
 
 **Step-Security `harden-runner`** is the first step on every job, with `egress-policy: audit`. In audit mode the action installs eBPF hooks at the kernel level that log every outbound network connection from the runner ([StepSecurity docs](https://docs.stepsecurity.io/harden-runner)) without blocking anything. The audit log is the forensic trail if something does slip through. "Block" mode would refuse unknown egress entirely, which is the eventual goal, but enabling block requires an allow-list and the allow-list for a build that fans out to PyPI, Snap, AUR, `.deb`, and `.rpm` is large enough that I haven't audited it yet.
 
-**OIDC trusted publishing for PyPI** ([ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md)). There is no long-lived PyPI API token in this repo or in GitHub Secrets; PyPI accepts a per-job OIDC token minted by GitHub at publish time, scoped to the specific repository, workflow, environment, and job. A repo-wide secrets leak cannot push to PyPI; an attacker would have to compromise the GitHub OIDC infrastructure itself, or rename the workflow file to match the trusted-publisher configuration. The trade-off is one manual setup step at <https://pypi.org/manage/account/publishing/> per project, which is unavoidable but only happens once.
+**OIDC trusted publishing for PyPI** ([ADR 0004](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/adr/0004-pypi-trusted-publishing-oidc.md)). There is no long-lived PyPI API token in this repo or in GitHub Secrets; PyPI accepts a per-job OIDC token minted by GitHub at publish time, scoped to the specific repository, workflow, environment, and job. A repo-wide secrets leak cannot push to PyPI; an attacker would have to compromise the GitHub OIDC infrastructure itself, or rename the workflow file to match the trusted-publisher configuration. The trade-off is one manual setup step at the [PyPI publishing settings page](https://pypi.org/manage/account/publishing/) per project, which is unavoidable but only happens once.
 
 The full release pipeline DAG, the secrets matrix, the `harden-runner` audit semantics, the SHA-pinning policy, and the debug playbook live in [docs/ci-cd.md](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/docs/ci-cd.md).
 
