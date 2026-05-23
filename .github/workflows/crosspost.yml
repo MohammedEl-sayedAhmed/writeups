@@ -1,116 +1,200 @@
 name: Cross-post to dev.to
 
-# Paused 2026-05-23: the auto-trigger is disabled while we triage two
-# composition issues against dev.to and against this repo's branch
-# protection on main:
+# Triggered automatically on any merge to main that touches a blog post.
+# Composes with the repo's "require PR" branch protection on main: instead
+# of letting the action direct-push (which gets rejected with GH006), the
+# workflow runs publish-devto against a per-run working branch, restores
+# rich tags on top of that branch, and opens an auto-merging PR from the
+# working branch back into main. Required status checks (unit, e2e) run
+# on the auto-PR the same way they would on any other PR.
 #
-#   1. dev.to returned HTTP 422 on the Clipman writeup's initial publish
-#      even after the tag set was reduced to four lowercase-alphanumeric
-#      entries (see PR #20 + run 26317495543). At least one more body-side
-#      validation is failing and the action does not surface dev.to's
-#      response body, so we need a separate manual reproduction with
-#      DEVTO_TOKEN to identify the real cause.
+# Required repo secret: CROSSPOST_PAT
+#   A fine-grained PAT with `contents: write` + `pull-requests: write` on
+#   THIS repository. The default GITHUB_TOKEN cannot be used to open the
+#   PR because PRs opened by GITHUB_TOKEN do not trigger downstream
+#   workflows, which means the required `unit` / `e2e` checks would never
+#   run and auto-merge would hang forever. The PAT is the documented
+#   workaround for that GitHub constraint. See the comment block above
+#   the `Open auto-merge PR` step for details.
 #
-#   2. main is a protected branch that requires changes via PR. Both
-#      publish-devto's id-writeback push and our own restore-rich-tags
-#      push were rejected by GH006. The workflow needs to commit through
-#      a PR rather than direct-to-main before it can be re-enabled.
-#
-# The push trigger is intentionally removed for now; the workflow is
-# only invocable manually via workflow_dispatch so the maintainer can
-# re-run it deliberately during triage. Once both issues are resolved
-# the push trigger should be restored.
+# Required repo setting: "Allow auto-merge" must be ON in Settings ->
+# General -> Pull Requests. Without it, `gh pr merge --auto` errors.
+
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/content/blog/**'
+  # workflow_dispatch is for re-publishing an existing post on demand —
+  # e.g. when a previously-cross-posted article needs its body refreshed
+  # against new transformations (image-URL rewrite, tag swap) without
+  # any source change. publish-devto reconciles by title against the
+  # remote dev.to list, so a manual run will UPDATE the existing
+  # article rather than creating a duplicate.
   workflow_dispatch:
 
-# Default-deny at workflow level; the one job below grants only the minimum it needs.
-# Defense in depth: a step that doesn't declare permissions inherits nothing.
 permissions: {}
 
-# Prevent two simultaneous publishes from racing on the same post.
-# cancel-in-progress: false → in-flight runs finish; new ones queue.
 concurrency:
   group: crosspost-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish:
+    # Recursion guard. When the auto-PR squashes back to main, that push
+    # touches src/content/blog/** and would re-trigger this workflow. The
+    # auto-PR title (and therefore the squash commit's headline subject)
+    # always starts with 'chore(crosspost):', so we skip when the commit
+    # message starts with that prefix. The check is on the headline only
+    # (the first line of head_commit.message), not the full message body,
+    # so a normal post-edit commit whose body happens to mention the
+    # prefix elsewhere will still publish.
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(crosspost):') }}
     runs-on: ubuntu-latest
-
-    # Cap blast radius if anything stalls or loops.
     timeout-minutes: 10
-
-    # Least-privilege: only `contents: write` (needed so the action can commit
-    # the dev.to article id back to frontmatter). No issues, no PRs, no packages.
     permissions:
+      # Job-level permissions are deliberately narrow. The PR is opened
+      # using the PAT (not GITHUB_TOKEN), so this token mainly needs
+      # contents: read for checkout and contents: write for the working
+      # branch push. We do NOT grant pull-requests: write here because
+      # GITHUB_TOKEN does not open the PR.
       contents: write
 
     steps:
-      - name: Skip if DEVTO_TOKEN is not configured
+      # 1) Gate on the two secrets the run depends on.
+      - name: Validate secrets
         id: gate
         env:
-          # Secret is injected via env, never interpolated into the shell directly.
           DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
+          CROSSPOST_PAT: ${{ secrets.CROSSPOST_PAT }}
         run: |
-          if [ -z "$DEVTO_TOKEN" ]; then
-            echo "::warning::DEVTO_TOKEN secret is not set — skipping cross-post."
+          missing=()
+          [ -z "$DEVTO_TOKEN" ] && missing+=(DEVTO_TOKEN)
+          [ -z "$CROSSPOST_PAT" ] && missing+=(CROSSPOST_PAT)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Missing required secret(s): ${missing[*]} — skipping crosspost."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Actions are pinned to commit SHA (not tag) so a compromise of the upstream
-      # repo cannot silently retarget what we run. The trailing `# vX.Y.Z` comment
-      # is the standard convention Dependabot reads to bump the pin.
+      # 2) Pinned to commit SHA per the repo's supply-chain posture.
       - name: Checkout
         if: steps.gate.outputs.skip != 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # We want the working tree of main but plan to push to a
+          # working branch. We use the PAT for checkout because
+          # publish-devto's bundled git push uses whatever credential
+          # this checkout configured. With the PAT in place the action's
+          # push to the working branch succeeds without further config.
+          token: ${{ secrets.CROSSPOST_PAT }}
+          persist-credentials: true
 
-      # dev.to's article API caps tags at 4 entries and rejects anything that
-      # isn't lowercase-alphanumeric (no hyphens). The site's `tags:` field
-      # can be richer. When a post sets a `devto_tags:` value in its
-      # frontmatter, swap `tags` to that lean value before publish-devto
-      # sees it; restore afterwards in a separate commit so main keeps the
-      # rich site-side set.
-      - name: Swap rich tags -> devto_tags for crosspost
+      # 3) Move HEAD to a per-run branch so anything publish-devto
+      #    commits ends up there rather than on main.
+      - name: Create working branch
+        if: steps.gate.outputs.skip != 'true'
+        id: branch
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          branch="crosspost/devto-${RUN_ID}"
+          git checkout -B "$branch"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+
+      # 4) Lean tags + strip date for what dev.to sees.
+      - name: Swap rich tags -> devto_tags and strip date
         if: steps.gate.outputs.skip != 'true'
         run: |
           python3 .github/scripts/swap-tags.py to-devto \
             $(find src/content/blog -name '*.md' -print)
 
+      # 4b) Rewrite root-relative asset URLs to absolute mammar.pages.dev
+      #     URLs for the dev.to body. The post source uses /foo so the
+      #     site renders the asset from whichever origin is serving the
+      #     page (preview deployments included). dev.to embeds the body
+      #     verbatim, where `/foo` would resolve against dev.to itself
+      #     and 404. The substitution is reversed in step 6 so the auto-
+      #     PR back to main does not change the source convention.
+      - name: Rewrite root-relative URLs to absolute for dev.to
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          for f in $(find src/content/blog -name '*.md' -print); do
+            # `src="/path"` -> `src="https://mammar.pages.dev/path"`.
+            # The leading slash makes the match unambiguous; absolute
+            # https:// URLs already in the source are untouched.
+            sed -i 's|src="/|src="https://mammar.pages.dev/|g' "$f"
+          done
+
+      # 5) Publish to dev.to. Tell the action to push its id-writeback
+      #    commit to the working branch, not main.
       - name: Publish articles to dev.to
         if: steps.gate.outputs.skip != 'true'
         uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85 # v2
         with:
           devto_key: ${{ secrets.DEVTO_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.CROSSPOST_PAT }}
           files: 'src/content/blog/**/*.md'
-          branch: main
+          branch: ${{ steps.branch.outputs.branch }}
           conventional_commits: true
 
-      # Always run: even on publish failure we want the rich `tags:` value
-      # back on disk so the next workflow invocation does not see a swapped
-      # file. publish-devto commits only on success, so on failure this
-      # step is a no-op as far as git history goes (the working tree gets
-      # reset to the rich set and nothing is pushed).
-      - name: Restore rich tags after crosspost
-        if: always() && steps.gate.outputs.skip != 'true'
+      # 6) Pull whatever publish-devto pushed, restore rich tags + date
+      #    AND revert the URL rewrite from step 4b, commit on top.
+      - name: Restore rich tags + date + relative URLs
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           set -euo pipefail
-          # Pull whatever publish-devto just pushed (the lean-tags + id
-          # commit) so our restore lands on top of it cleanly.
-          git pull --ff-only origin main || true
+          git pull --ff-only origin "$BRANCH" || true
           python3 .github/scripts/swap-tags.py restore \
             $(find src/content/blog -name '*.md' -print)
-          # Only commit when there is actually a tags-line delta to ship.
+          # Inverse of step 4b: absolute mammar.pages.dev asset URLs
+          # back to root-relative. Safe to apply unconditionally because
+          # we never write `src="https://mammar.pages.dev/..."` in the
+          # source — it only appears as the output of step 4b.
+          for f in $(find src/content/blog -name '*.md' -print); do
+            sed -i 's|src="https://mammar.pages.dev/|src="/|g' "$f"
+          done
           if ! git diff --quiet src/content/blog/; then
             git -c user.name='github-actions[bot]' \
                 -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
                 add src/content/blog/
             git -c user.name='github-actions[bot]' \
                 -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-                commit -m 'chore(crosspost): restore rich tags after dev.to publish'
-            git push origin HEAD:main
+                commit -m 'chore(crosspost): restore rich tags, date, and relative URLs after dev.to publish'
+            git push origin "HEAD:${BRANCH}"
           else
-            echo 'no tags drift to restore'
+            echo 'no post-state drift to restore'
           fi
+
+      # 7) Open a PR from the working branch back to main and enable
+      #    auto-merge. We must use the PAT (not GITHUB_TOKEN) here
+      #    because GitHub deliberately suppresses workflow triggers for
+      #    events caused by GITHUB_TOKEN. If we opened the PR with
+      #    GITHUB_TOKEN, test.yml's `pull_request` trigger would not
+      #    fire, the required `unit` and `e2e` checks would never run,
+      #    and auto-merge would block forever.
+      - name: Open auto-merge PR
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CROSSPOST_PAT }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Capture the created PR's URL so we hand `gh pr merge` an
+          # unambiguous reference rather than a branch name, which `gh`
+          # can mis-resolve when multiple PRs touch the same branch
+          # (concurrency:cancel-in-progress is off, so simultaneous runs
+          # can exist briefly).
+          pr_url="$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title 'chore(crosspost): dev.to writeback + tag restore' \
+            --body "Automated cross-post writeback opened by crosspost.yml run ${RUN_ID}. The dev.to article id (if newly published) has been written into the post frontmatter; rich tags and \`date\` have been restored after the swap." \
+            --label automated)"
+          echo "Opened ${pr_url}"
+          gh pr merge "$pr_url" --auto --squash --delete-branch
