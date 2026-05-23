@@ -110,24 +110,6 @@ jobs:
           python3 .github/scripts/swap-tags.py to-devto \
             $(find src/content/blog -name '*.md' -print)
 
-      # 4b) Rewrite root-relative asset URLs to absolute mammar.pages.dev
-      #     URLs for the dev.to body. The post source uses /foo so the
-      #     site renders the asset from whichever origin is serving the
-      #     page (preview deployments included). dev.to embeds the body
-      #     verbatim, where `/foo` would resolve against dev.to itself
-      #     and 404. The substitution is reversed in step 6 so the auto-
-      #     PR back to main does not change the source convention.
-      - name: Rewrite root-relative URLs to absolute for dev.to
-        if: steps.gate.outputs.skip != 'true'
-        run: |
-          set -euo pipefail
-          for f in $(find src/content/blog -name '*.md' -print); do
-            # `src="/path"` -> `src="https://mammar.pages.dev/path"`.
-            # The leading slash makes the match unambiguous; absolute
-            # https:// URLs already in the source are untouched.
-            sed -i 's|src="/|src="https://mammar.pages.dev/|g' "$f"
-          done
-
       # 5) Publish to dev.to. Tell the action to push its id-writeback
       #    commit to the working branch, not main.
       - name: Publish articles to dev.to
@@ -140,9 +122,9 @@ jobs:
           branch: ${{ steps.branch.outputs.branch }}
           conventional_commits: true
 
-      # 6) Pull whatever publish-devto pushed, restore rich tags + date
-      #    AND revert the URL rewrite from step 4b, commit on top.
-      - name: Restore rich tags + date + relative URLs
+      # 6) Pull whatever publish-devto pushed, restore rich tags + date,
+      #    commit on top.
+      - name: Restore rich tags + date
         if: steps.gate.outputs.skip != 'true'
         env:
           BRANCH: ${{ steps.branch.outputs.branch }}
@@ -151,20 +133,13 @@ jobs:
           git pull --ff-only origin "$BRANCH" || true
           python3 .github/scripts/swap-tags.py restore \
             $(find src/content/blog -name '*.md' -print)
-          # Inverse of step 4b: absolute mammar.pages.dev asset URLs
-          # back to root-relative. Safe to apply unconditionally because
-          # we never write `src="https://mammar.pages.dev/..."` in the
-          # source — it only appears as the output of step 4b.
-          for f in $(find src/content/blog -name '*.md' -print); do
-            sed -i 's|src="https://mammar.pages.dev/|src="/|g' "$f"
-          done
           if ! git diff --quiet src/content/blog/; then
             git -c user.name='github-actions[bot]' \
                 -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
                 add src/content/blog/
             git -c user.name='github-actions[bot]' \
                 -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-                commit -m 'chore(crosspost): restore rich tags, date, and relative URLs after dev.to publish'
+                commit -m 'chore(crosspost): restore rich tags and date after dev.to publish'
             git push origin "HEAD:${BRANCH}"
           else
             echo 'no post-state drift to restore'
