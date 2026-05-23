@@ -115,7 +115,7 @@ End of background.
 Clipman is two cooperating processes plus a database. There is a daemon — a long-running background process with no UI of its own (`clipman.py` plus the `clipman/` Python package) — that runs as a `systemd --user` service and owns the popup window, the storage, the settings, and the D-Bus surface. There is a GNOME Shell extension (`extension/extension.js`) that lives inside the running Shell process and watches the clipboard. They talk over D-Bus on the session bus.
 
 <p align="center">
-  <img src="https://mammar.pages.dev/clipman-architecture.png"
+  <img src="/clipman-architecture.png"
        alt="Clipman architecture diagram"
        width="100%">
 </p>
