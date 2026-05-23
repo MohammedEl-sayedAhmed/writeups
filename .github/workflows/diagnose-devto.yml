@@ -21,6 +21,10 @@ on:
         description: 'Path to the markdown file to test'
         required: false
         default: 'src/content/blog/clipman-clipboard-manager-wayland-gnome.md'
+      update_id:
+        description: 'Article id to UPDATE (PUT). Leave blank to POST/create.'
+        required: false
+        default: ''
 
 permissions: {}
 
@@ -50,11 +54,22 @@ jobs:
         with:
           persist-credentials: false
 
-      # Input is passed via env, never interpolated into the shell command,
-      # so a hostile workflow_dispatch input cannot inject shell syntax.
+      # Inputs are passed via env, never interpolated into the shell
+      # command, so a hostile workflow_dispatch input cannot inject
+      # shell syntax. UPDATE_ID is validated to be numeric before use.
       - name: Run diagnose-devto.py
         env:
           DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
           FILE: ${{ inputs.file }}
+          UPDATE_ID: ${{ inputs.update_id }}
         run: |
-          python3 scripts/diagnose-devto.py "$FILE"
+          set -euo pipefail
+          if [ -n "$UPDATE_ID" ]; then
+            if ! [[ "$UPDATE_ID" =~ ^[0-9]+$ ]]; then
+              echo "::error::update_id must be a positive integer, got '$UPDATE_ID'."
+              exit 1
+            fi
+            python3 scripts/diagnose-devto.py "$FILE" --update "$UPDATE_ID"
+          else
+            python3 scripts/diagnose-devto.py "$FILE"
+          fi
