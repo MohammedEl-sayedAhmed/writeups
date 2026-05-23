@@ -1,242 +1,253 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 780" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="optimizeLegibility">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 1020" role="img" aria-labelledby="title desc" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="optimizeLegibility">
   <title id="title">writeups architecture</title>
-  <desc id="desc">Source of truth is markdown under src/content/blog/. Pushing to main fans out to three pipelines: Cloudflare Pages builds the Astro site and deploys it to mammar.pages.dev; the crosspost workflow opens an auto-merging PR that publishes or updates the dev.to copy via sinedied/publish-devto, then writes the dev.to article id back into the post frontmatter; the send-webmentions workflow pings every outgoing link's webmention endpoint. A separate manual diagnose-devto workflow reproduces a single publish call against the dev.to API for troubleshooting. test.yml's unit and e2e jobs are required checks that gate the auto-merge PR back to main.</desc>
-
-  <style>
-    .lbl      { font-size: 14px; font-weight: 600; }
-    .sub      { font-size: 11.5px; font-weight: 400; }
-    .edge-lbl { font-size: 11.5px; font-weight: 500; }
-
-    .node { stroke-width: 1.5; }
-
-    .src-fill { fill: #f3e8ff; }
-    .src-str  { stroke: #9333ea; }
-    .src-txt  { fill: #6b21a8; }
-
-    .gh-fill { fill: #dbeafe; }
-    .gh-str  { stroke: #3b82f6; }
-    .gh-txt  { fill: #1e40af; }
-
-    .build-fill { fill: #dcfce7; }
-    .build-str  { stroke: #16a34a; }
-    .build-txt  { fill: #166534; }
-
-    .act-fill { fill: #fef3c7; }
-    .act-str  { stroke: #d97706; }
-    .act-txt  { fill: #92400e; }
-
-    .out-fill { fill: #ffe4e6; }
-    .out-str  { stroke: #e11d48; }
-    .out-txt  { fill: #9f1239; }
-
-    .edge      { stroke: #475569; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .edge-dash { stroke: #475569; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; stroke-linecap: round; stroke-linejoin: round; }
-    .edge-txt  { fill: #334155; }
-    .edge-bg   { fill: #ffffff; }
-    .arrow     { fill: #475569; }
-
-    .group-box { fill: none; stroke: #94a3b8; stroke-width: 1.25; stroke-dasharray: 5 4; }
-    .group-lbl { font-size: 12px; font-weight: 600; fill: #64748b; letter-spacing: 0.3px; }
-
-    @media (prefers-color-scheme: dark) {
-      .src-fill { fill: #581c87; }
-      .src-str  { stroke: #c084fc; }
-      .src-txt  { fill: #e9d5ff; }
-
-      .gh-fill { fill: #1e3a8a; }
-      .gh-str  { stroke: #60a5fa; }
-      .gh-txt  { fill: #bfdbfe; }
-
-      .build-fill { fill: #14532d; }
-      .build-str  { stroke: #4ade80; }
-      .build-txt  { fill: #bbf7d0; }
-
-      .act-fill { fill: #78350f; }
-      .act-str  { stroke: #fbbf24; }
-      .act-txt  { fill: #fde68a; }
-
-      .out-fill { fill: #881337; }
-      .out-str  { stroke: #fb7185; }
-      .out-txt  { fill: #fecdd3; }
-
-      .edge      { stroke: #cbd5e1; }
-      .edge-dash { stroke: #cbd5e1; }
-      .edge-txt  { fill: #e2e8f0; }
-      .edge-bg   { fill: #0f172a; }
-      .arrow     { fill: #cbd5e1; }
-
-      .group-box { stroke: #64748b; }
-      .group-lbl { fill: #94a3b8; }
-    }
-  </style>
+  <desc id="desc">Source of truth is markdown under src/content/blog/. Pushing to main fans out to Cloudflare Pages (which runs the Astro build and ships the rendered site to mammar.pages.dev) and to four GitHub Actions workflows: crosspost.yml publishes the post to dev.to and writes the new article id back to the post frontmatter; test.yml gates the auto-merge PR via required unit and e2e checks; send-webmentions.yml POSTs to the outgoing-link webmention endpoints; diagnose-devto.yml is a manual-only diagnostic against the dev.to Forem API. Dashed edges are writebacks and gating relationships rather than primary data flow.</desc>
 
   <defs>
-    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5"
-            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" class="arrow"/>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
     </marker>
   </defs>
 
-  <!-- Group: Cloudflare Pages -->
-  <rect x="540" y="60" width="320" height="180" rx="10" class="group-box"/>
-  <text x="554" y="80" class="group-lbl">CLOUDFLARE PAGES</text>
+  <style>
+    .lbl       { font-size: 14px; font-weight: 600; }
+    .sub       { font-size: 11.5px; font-weight: 400; }
+    .edge-lbl  { font-size: 11.5px; font-weight: 500; fill: #334155; }
+    .group-hdr { font-size: 11px;  font-weight: 700; letter-spacing: 1.5px; fill: #64748b; }
 
-  <!-- Group: GitHub Actions workflows -->
-  <rect x="540" y="290" width="320" height="380" rx="10" class="group-box"/>
-  <text x="554" y="310" class="group-lbl">GITHUB ACTIONS</text>
+    .node      { stroke-width: 1.5; }
+    .edge      { fill: none; stroke: #475569; stroke-width: 1.5; }
+    .edge-soft { fill: none; stroke: #94a3b8; stroke-width: 1.4; stroke-dasharray: 5 4; }
 
-  <!-- Author -->
-  <rect x="40" y="170" width="200" height="64" rx="8" class="node src-fill src-str"/>
-  <text x="140" y="196" text-anchor="middle" class="lbl src-txt">Author</text>
-  <text x="140" y="214" text-anchor="middle" class="sub src-txt">npm run dev / build / preview</text>
+    .src-fill { fill: #f3e8ff; } .src-str { stroke: #9333ea; } .src-txt { fill: #6b21a8; }
+    .gh-fill  { fill: #dbeafe; } .gh-str  { stroke: #3b82f6; } .gh-txt  { fill: #1e40af; }
+    .bld-fill { fill: #dcfce7; } .bld-str { stroke: #16a34a; } .bld-txt { fill: #166534; }
+    .act-fill { fill: #fef3c7; } .act-str { stroke: #d97706; } .act-txt { fill: #92400e; }
+    .out-fill { fill: #ffe4e6; } .out-str { stroke: #e11d48; } .out-txt { fill: #9f1239; }
 
-  <!-- Source: markdown content (cylinder = source of truth) -->
-  <g transform="translate(40, 350)">
-    <ellipse cx="100" cy="10" rx="100" ry="14" class="node src-fill src-str"/>
-    <path d="M0,10 L0,70 A100,14 0 0 0 200,70 L200,10" class="node src-fill src-str"/>
-    <ellipse cx="100" cy="10" rx="100" ry="14" class="node src-fill src-str"/>
-    <text x="100" y="40" text-anchor="middle" class="lbl src-txt">src/content/blog/*.md</text>
-    <text x="100" y="58" text-anchor="middle" class="sub src-txt">Zod-validated frontmatter</text>
+    .group-box { fill: none; stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 4 3; }
+    .edge-bg   { fill: #ffffff; }
+
+    @media (prefers-color-scheme: dark) {
+      .src-fill { fill: #3b1366; } .src-str { stroke: #c084fc; } .src-txt { fill: #ede9fe; }
+      .gh-fill  { fill: #102a4c; } .gh-str  { stroke: #93c5fd; } .gh-txt  { fill: #dbeafe; }
+      .bld-fill { fill: #0e3a25; } .bld-str { stroke: #6ee7b7; } .bld-txt { fill: #d1fae5; }
+      .act-fill { fill: #4a2a07; } .act-str { stroke: #fcd34d; } .act-txt { fill: #fef3c7; }
+      .out-fill { fill: #4a0d20; } .out-str { stroke: #fda4af; } .out-txt { fill: #ffe4e6; }
+      .edge      { stroke: #94a3b8; }
+      .edge-soft { stroke: #64748b; }
+      .edge-lbl  { fill: #cbd5e1; }
+      .group-hdr { fill: #94a3b8; }
+      .group-box { stroke: #475569; }
+      .edge-bg   { fill: #0f172a; }
+      #arrow path        { fill: #94a3b8; }
+      #arrow-dashed path { fill: #64748b; }
+    }
+  </style>
+
+  <!-- ============ COLUMN 1: AUTHOR ============ -->
+  <g>
+    <rect class="node src-fill src-str" x="40" y="430" width="180" height="70" rx="10"/>
+    <text class="lbl src-txt" x="130" y="460" text-anchor="middle">Author</text>
+    <text class="sub src-txt" x="130" y="481" text-anchor="middle">npm run dev / build</text>
   </g>
 
-  <!-- git push -> main -->
-  <rect x="310" y="370" width="170" height="64" rx="8" class="node gh-fill gh-str"/>
-  <text x="395" y="396" text-anchor="middle" class="lbl gh-txt">git push -&gt; main</text>
-  <text x="395" y="414" text-anchor="middle" class="sub gh-txt">protected, linear history</text>
+  <!-- ============ COLUMN 2: MARKDOWN SOURCE (cylinder) ============ -->
+  <g transform="translate(280, 415)">
+    <path class="node src-fill src-str" d="M 0 12 a 110 14 0 0 1 220 0 v 76 a 110 14 0 0 1 -220 0 z"/>
+    <ellipse class="node src-fill src-str" cx="110" cy="12" rx="110" ry="14"/>
+    <text class="lbl src-txt" x="110" y="55" text-anchor="middle">src/content/blog/*.md</text>
+    <text class="sub src-txt" x="110" y="76" text-anchor="middle">Zod-validated frontmatter</text>
+  </g>
 
-  <!-- Cloudflare build nodes -->
-  <rect x="570" y="105" width="260" height="60" rx="8" class="node build-fill build-str"/>
-  <text x="700" y="129" text-anchor="middle" class="lbl build-txt">Astro build (Node 22)</text>
-  <text x="700" y="147" text-anchor="middle" class="sub build-txt">npm run build -&gt; dist/</text>
+  <!-- ============ COLUMN 3: GIT PUSH -> MAIN ============ -->
+  <g>
+    <rect class="node gh-fill gh-str" x="600" y="430" width="200" height="70" rx="10"/>
+    <text class="lbl gh-txt" x="700" y="460" text-anchor="middle">git push → main</text>
+    <text class="sub gh-txt" x="700" y="481" text-anchor="middle">protected · linear history</text>
+  </g>
 
-  <rect x="570" y="180" width="260" height="50" rx="8" class="node build-fill build-str"/>
-  <text x="700" y="200" text-anchor="middle" class="lbl build-txt">satori + resvg</text>
-  <text x="700" y="217" text-anchor="middle" class="sub build-txt">per-post /og/&lt;slug&gt;.png</text>
+  <!-- ============ CLOUDFLARE PAGES CLUSTER (top right) ============ -->
+  <g>
+    <rect class="group-box" x="880" y="80" width="380" height="240" rx="12"/>
+    <text class="group-hdr" x="900" y="105">CLOUDFLARE PAGES</text>
 
-  <!-- crosspost workflow -->
-  <rect x="570" y="340" width="260" height="68" rx="8" class="node act-fill act-str"/>
-  <text x="700" y="365" text-anchor="middle" class="lbl act-txt">crosspost.yml</text>
-  <text x="700" y="382" text-anchor="middle" class="sub act-txt">working branch -&gt; auto-merge PR</text>
-  <text x="700" y="398" text-anchor="middle" class="sub act-txt">sinedied/publish-devto (SHA-pinned)</text>
+    <rect class="node bld-fill bld-str" x="910" y="130" width="320" height="65" rx="8"/>
+    <text class="lbl bld-txt" x="1070" y="158" text-anchor="middle">Astro build (Node 22)</text>
+    <text class="sub bld-txt" x="1070" y="178" text-anchor="middle">npm run build → dist/</text>
 
-  <!-- test workflow (placed between crosspost and webmentions so the gate arrow is short) -->
-  <rect x="570" y="430" width="260" height="58" rx="8" class="node act-fill act-str"/>
-  <text x="700" y="453" text-anchor="middle" class="lbl act-txt">test.yml: unit + e2e</text>
-  <text x="700" y="470" text-anchor="middle" class="sub act-txt">Vitest + Playwright, required checks</text>
+    <rect class="node bld-fill bld-str" x="910" y="220" width="320" height="65" rx="8"/>
+    <text class="lbl bld-txt" x="1070" y="248" text-anchor="middle">satori + resvg</text>
+    <text class="sub bld-txt" x="1070" y="268" text-anchor="middle">per-post /og/&lt;slug&gt;.png</text>
 
-  <!-- send-webmentions workflow -->
-  <rect x="570" y="510" width="260" height="58" rx="8" class="node act-fill act-str"/>
-  <text x="700" y="533" text-anchor="middle" class="lbl act-txt">send-webmentions.yml</text>
-  <text x="700" y="550" text-anchor="middle" class="sub act-txt">POST to outgoing links' endpoints</text>
+    <!-- Inside-cluster flow: Astro -> satori -->
+    <path class="edge" d="M 1070 195 v 25" marker-end="url(#arrow)"/>
+  </g>
 
-  <!-- diagnose-devto workflow (manual) -->
-  <rect x="570" y="600" width="260" height="48" rx="8" class="node act-fill act-str"/>
-  <text x="700" y="623" text-anchor="middle" class="lbl act-txt">diagnose-devto.yml</text>
-  <text x="700" y="639" text-anchor="middle" class="sub act-txt">manual workflow_dispatch only</text>
+  <!-- ============ GITHUB ACTIONS CLUSTER (bottom right) ============ -->
+  <g>
+    <rect class="group-box" x="880" y="380" width="380" height="500" rx="12"/>
+    <text class="group-hdr" x="900" y="405">GITHUB ACTIONS</text>
 
-  <!-- Output: site -->
-  <circle cx="990" cy="135" r="68" class="node out-fill out-str"/>
-  <text x="990" y="130" text-anchor="middle" class="lbl out-txt">mammar</text>
-  <text x="990" y="148" text-anchor="middle" class="lbl out-txt">.pages.dev</text>
+    <rect class="node act-fill act-str" x="910" y="430" width="320" height="70" rx="8"/>
+    <text class="lbl act-txt" x="1070" y="458" text-anchor="middle">crosspost.yml</text>
+    <text class="sub act-txt" x="1070" y="479" text-anchor="middle">working branch → auto-merge PR</text>
 
-  <!-- Output: dev.to -->
-  <circle cx="990" cy="374" r="56" class="node out-fill out-str"/>
-  <text x="990" y="370" text-anchor="middle" class="lbl out-txt">dev.to</text>
-  <text x="990" y="388" text-anchor="middle" class="sub out-txt">/mammar</text>
+    <rect class="node act-fill act-str" x="910" y="550" width="320" height="65" rx="8"/>
+    <text class="lbl act-txt" x="1070" y="578" text-anchor="middle">test.yml — unit + e2e</text>
+    <text class="sub act-txt" x="1070" y="598" text-anchor="middle">Vitest + Playwright · required checks</text>
 
-  <!-- Output: webmention endpoints -->
-  <circle cx="990" cy="539" r="50" class="node out-fill out-str"/>
-  <text x="990" y="536" text-anchor="middle" class="sub out-txt">webmention</text>
-  <text x="990" y="552" text-anchor="middle" class="sub out-txt">endpoints</text>
+    <rect class="node act-fill act-str" x="910" y="645" width="320" height="65" rx="8"/>
+    <text class="lbl act-txt" x="1070" y="673" text-anchor="middle">send-webmentions.yml</text>
+    <text class="sub act-txt" x="1070" y="693" text-anchor="middle">POST to outgoing-link endpoints</text>
 
-  <!-- Output: dev.to Forem API (for diagnose) -->
-  <circle cx="990" cy="624" r="40" class="node out-fill out-str"/>
-  <text x="990" y="622" text-anchor="middle" class="sub out-txt">dev.to</text>
-  <text x="990" y="636" text-anchor="middle" class="sub out-txt">Forem API</text>
+    <rect class="node act-fill act-str" x="910" y="775" width="320" height="65" rx="8"/>
+    <text class="lbl act-txt" x="1070" y="803" text-anchor="middle">diagnose-devto.yml</text>
+    <text class="sub act-txt" x="1070" y="823" text-anchor="middle">manual workflow_dispatch only</text>
 
-  <!-- ===================== EDGES ===================== -->
+    <!-- Gate edge: test.yml -> crosspost.yml.
+         Short dashed arrow INSIDE the cluster, between the two boxes.
+         Routed near the right edge of the cluster so the gating
+         relationship stays inside the GitHub Actions group without
+         crowding the inbound `on push: blog` arrow on the left.
+         Label is positioned WELL to the left of the arrow's x so the
+         arrow line never passes through the label background. -->
+    <path class="edge-soft" d="M 1190 550 V 500" marker-end="url(#arrow-dashed)"/>
+    <rect class="edge-bg" x="1078" y="515" width="100" height="18" rx="3"/>
+    <text class="edge-lbl" x="1084" y="529">required checks</text>
+  </g>
 
-  <!-- Author writes -->
-  <path d="M140,234 L140,350" class="edge" marker-end="url(#arr)"/>
-  <rect x="111" y="282" width="58" height="16" rx="2" class="edge-bg"/>
-  <text x="140" y="294" text-anchor="middle" class="edge-lbl edge-txt">authors</text>
+  <!-- ============ OUTPUTS (far right circles) ============ -->
+  <g>
+    <circle class="node out-fill out-str" cx="1390" cy="200" r="60"/>
+    <text class="lbl out-txt" x="1390" y="195" text-anchor="middle">mammar</text>
+    <text class="lbl out-txt" x="1390" y="213" text-anchor="middle">.pages.dev</text>
 
-  <!-- Source -> push -->
-  <path d="M240,402 L310,402" class="edge" marker-end="url(#arr)"/>
-  <rect x="252" y="392" width="46" height="16" rx="2" class="edge-bg"/>
-  <text x="275" y="404" text-anchor="middle" class="edge-lbl edge-txt">commit</text>
+    <circle class="node out-fill out-str" cx="1390" cy="465" r="55"/>
+    <text class="lbl out-txt" x="1390" y="460" text-anchor="middle">dev.to</text>
+    <text class="sub out-txt" x="1390" y="478" text-anchor="middle">/mammar</text>
 
-  <!-- push -> cloudflare build (up-right) -->
-  <path d="M480,385 L520,385 L520,135 L570,135" class="edge" marker-end="url(#arr)"/>
-  <rect x="471" y="224" width="98" height="16" rx="2" class="edge-bg"/>
-  <text x="520" y="236" text-anchor="middle" class="edge-lbl edge-txt">webhook deploy</text>
+    <circle class="node out-fill out-str" cx="1390" cy="677" r="52"/>
+    <text class="lbl out-txt" x="1390" y="672" text-anchor="middle">webmention</text>
+    <text class="sub out-txt" x="1390" y="690" text-anchor="middle">endpoints</text>
 
-  <!-- push -> crosspost (horizontal, slightly up) -->
-  <path d="M480,395 L520,395 L520,374 L570,374" class="edge" marker-end="url(#arr)"/>
-  <rect x="430" y="335" width="160" height="16" rx="2" class="edge-bg"/>
-  <text x="510" y="347" text-anchor="middle" class="edge-lbl edge-txt">paths: src/content/blog/**</text>
+    <circle class="node out-fill out-str" cx="1390" cy="807" r="48"/>
+    <text class="lbl out-txt" x="1390" y="802" text-anchor="middle">dev.to</text>
+    <text class="sub out-txt" x="1390" y="820" text-anchor="middle">Forem API</text>
+  </g>
 
-  <!-- push -> test.yml -->
-  <path d="M480,415 L525,415 L525,459 L570,459" class="edge" marker-end="url(#arr)"/>
-  <rect x="487" y="418" width="74" height="16" rx="2" class="edge-bg"/>
-  <text x="524" y="430" text-anchor="middle" class="edge-lbl edge-txt">PR + push</text>
+  <!-- ============ PRIMARY DATA-FLOW EDGES ============
+       Convention for edge labels:
+         - rect background: 8px wider than the text, 18px tall
+         - text:            ~11.5px font, baseline at rect-y + 13
+         - rect-x:          (label center) - (rect width / 2)
+         - rect-y:          label baseline-y - 13
+       Backgrounds are intentionally a few px wider than the text
+       glyphs so the underlying edge line is fully masked even at
+       coarse rendering resolutions. -->
 
-  <!-- push -> webmentions (curve down) -->
-  <path d="M480,425 L515,425 L515,539 L570,539" class="edge" marker-end="url(#arr)"/>
-  <rect x="485" y="498" width="60" height="16" rx="2" class="edge-bg"/>
-  <text x="515" y="510" text-anchor="middle" class="edge-lbl edge-txt">on push</text>
+  <!-- Author -> src/content/blog -->
+  <path class="edge" d="M 220 465 H 270" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="222" y="435" width="56" height="18" rx="3"/>
+  <text class="edge-lbl" x="231" y="448">authors</text>
 
-  <!-- cloudflare build -> satori (within group, vertical) -->
-  <path d="M700,165 L700,180" class="edge" marker-end="url(#arr)"/>
+  <!-- src/content/blog -> git push -->
+  <path class="edge" d="M 510 465 H 590" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="521" y="435" width="58" height="18" rx="3"/>
+  <text class="edge-lbl" x="530" y="448">commit</text>
 
-  <!-- cloudflare build -> site -->
-  <path d="M830,135 L922,135" class="edge" marker-end="url(#arr)"/>
-  <rect x="855" y="124" width="60" height="16" rx="2" class="edge-bg"/>
-  <text x="885" y="136" text-anchor="middle" class="edge-lbl edge-txt">deploy</text>
+  <!-- git push -> Cloudflare Pages cluster (curve up + right).
+       Label placed near the TOP of the curve, well above the
+       horizontal arrow into crosspost.yml so the two labels do not
+       crowd. -->
+  <path class="edge" d="M 700 430 V 280 Q 700 200 880 200" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="705" y="160" width="124" height="18" rx="3"/>
+  <text class="edge-lbl" x="713" y="173">webhook deploy</text>
 
-  <!-- crosspost -> dev.to -->
-  <path d="M830,374 L934,374" class="edge" marker-end="url(#arr)"/>
-  <rect x="844" y="364" width="76" height="16" rx="2" class="edge-bg"/>
-  <text x="882" y="376" text-anchor="middle" class="edge-lbl edge-txt">POST/PUT</text>
+  <!-- git push -> crosspost.yml.
+       Trigger is `push: main` + paths `src/content/blog/**`. The
+       parallel edge to send-webmentions.yml shares the exact same
+       trigger and is left unlabeled to avoid visual repetition. -->
+  <path class="edge" d="M 800 460 H 910" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="811" y="430" width="92" height="18" rx="3"/>
+  <text class="edge-lbl" x="818" y="443">on push: blog</text>
 
-  <!-- webmentions -> endpoints -->
-  <path d="M830,539 L940,539" class="edge" marker-end="url(#arr)"/>
-  <rect x="845" y="529" width="78" height="16" rx="2" class="edge-bg"/>
-  <text x="884" y="541" text-anchor="middle" class="edge-lbl edge-txt">webmention</text>
+  <!-- git push -> test.yml. Distinct trigger from the other two:
+       test.yml runs on `push: main` AND `pull_request: main` with no
+       path filter (it gates the auto-merge PR from crosspost via the
+       `required checks` dashed edge inside the cluster).
+       Routed OUT OF THE BOTTOM of git push, then horizontally below
+       crosspost.yml in the 30 px gap between the two cluster boxes,
+       then DOWN into test.yml's top edge. This puts the trigger arrow
+       and the send-webmentions arrow on completely different sides
+       of crosspost.yml so they cannot visually merge. -->
+  <path class="edge" d="M 730 500 V 525 H 1070 V 550" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="780" y="515" width="78" height="18" rx="3"/>
+  <text class="edge-lbl" x="787" y="528">PR + push</text>
 
-  <!-- diagnose -> dev.to API -->
-  <path d="M830,624 L950,624" class="edge" marker-end="url(#arr)"/>
-  <rect x="853" y="614" width="68" height="16" rx="2" class="edge-bg"/>
-  <text x="887" y="626" text-anchor="middle" class="edge-lbl edge-txt">manual run</text>
+  <!-- git push -> send-webmentions.yml (same trigger as crosspost,
+       label omitted). Right-exit + downward curve, no longer near
+       the test.yml arrow which now exits from git push's bottom. -->
+  <path class="edge" d="M 800 480 Q 855 480 855 620 Q 855 677 910 677" marker-end="url(#arrow)"/>
 
-  <!-- canonical_url from site to dev.to (so SEO credits the Astro site) -->
-  <path d="M958,191 C920,260 920,290 960,330" class="edge" marker-end="url(#arr)"/>
-  <rect x="880" y="248" width="100" height="16" rx="2" class="edge-bg"/>
-  <text x="930" y="260" text-anchor="middle" class="edge-lbl edge-txt">canonical_url</text>
+  <!-- Cloudflare Pages cluster -> mammar.pages.dev -->
+  <path class="edge" d="M 1260 200 H 1330" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="1266" y="182" width="54" height="18" rx="3"/>
+  <text class="edge-lbl" x="1273" y="195">deploy</text>
 
-  <!-- test.yml gates crosspost auto-merge PR (dashed dependency; arrow on left side of column) -->
-  <path d="M570,455 L545,455 L545,398 L570,398" class="edge-dash" marker-end="url(#arr)"/>
-  <rect x="446" y="368" width="100" height="16" rx="2" class="edge-bg"/>
-  <text x="496" y="380" text-anchor="middle" class="edge-lbl edge-txt">required checks</text>
+  <!-- crosspost.yml -> dev.to/mammar -->
+  <path class="edge" d="M 1230 465 H 1335" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="1243" y="435" width="74" height="18" rx="3"/>
+  <text class="edge-lbl" x="1250" y="448">POST/PUT</text>
 
-  <!-- WRITEBACK: crosspost -> source (dashed) routes under everything along the bottom -->
-  <path d="M570,408 L500,408 L500,720 L140,720 L140,488" class="edge-dash" marker-end="url(#arr)"/>
-  <rect x="225" y="712" width="200" height="16" rx="2" class="edge-bg"/>
-  <text x="325" y="724" text-anchor="middle" class="edge-lbl edge-txt">writes dev.to id to frontmatter</text>
+  <!-- send-webmentions.yml -> webmention endpoints -->
+  <path class="edge" d="M 1230 677 H 1338" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="1244" y="647" width="84" height="18" rx="3"/>
+  <text class="edge-lbl" x="1251" y="660">webmention</text>
 
-  <!-- Legend -->
-  <g transform="translate(40, 758)">
-    <rect x="0" y="-12" width="14" height="14" rx="2" class="src-fill src-str"/>
-    <text x="20" y="0" class="sub edge-txt">source</text>
-    <rect x="80" y="-12" width="14" height="14" rx="2" class="gh-fill gh-str"/>
-    <text x="100" y="0" class="sub edge-txt">git</text>
-    <rect x="140" y="-12" width="14" height="14" rx="2" class="build-fill build-str"/>
-    <text x="160" y="0" class="sub edge-txt">build / deploy</text>
-    <rect x="245" y="-12" width="14" height="14" rx="2" class="act-fill act-str"/>
-    <text x="265" y="0" class="sub edge-txt">workflows</text>
-    <circle cx="340" cy="-5" r="7" class="out-fill out-str"/>
-    <text x="355" y="0" class="sub edge-txt">outputs</text>
-    <line x1="420" y1="-5" x2="450" y2="-5" class="edge-dash"/>
-    <text x="456" y="0" class="sub edge-txt">writeback / gate</text>
+  <!-- diagnose-devto.yml -> dev.to Forem API -->
+  <path class="edge" d="M 1230 807 H 1342" marker-end="url(#arrow)"/>
+  <rect class="edge-bg" x="1244" y="777" width="80" height="18" rx="3"/>
+  <text class="edge-lbl" x="1251" y="790">manual run</text>
+
+  <!-- mammar.pages.dev -> dev.to/mammar (canonical_url, curved) -->
+  <path class="edge-soft" d="M 1390 260 Q 1330 360 1335 460" marker-end="url(#arrow-dashed)"/>
+  <rect class="edge-bg" x="1298" y="346" width="98" height="18" rx="3"/>
+  <text class="edge-lbl" x="1305" y="359">canonical_url</text>
+
+  <!-- ============ WRITEBACK LOOP (crosspost.yml -> src/content/blog) ============ -->
+  <!-- Routes BELOW the (now-taller) GitHub Actions cluster, then leftward, then up to src/content/blog -->
+  <path class="edge-soft"
+        d="M 910 465 Q 850 465 850 910 L 390 910 Q 390 910 390 510"
+        marker-end="url(#arrow-dashed)"/>
+  <rect class="edge-bg" x="544" y="902" width="184" height="18" rx="3"/>
+  <text class="edge-lbl" x="549" y="915">writes dev.to id to frontmatter</text>
+
+  <!-- ============ LEGEND ============ -->
+  <g transform="translate(40, 960)">
+    <rect class="node src-fill src-str" x="0" y="0" width="14" height="14" rx="2"/>
+    <text class="sub" x="20" y="11" fill="#475569">source</text>
+
+    <rect class="node gh-fill gh-str" x="80" y="0" width="14" height="14" rx="2"/>
+    <text class="sub" x="100" y="11" fill="#475569">git</text>
+
+    <rect class="node bld-fill bld-str" x="140" y="0" width="14" height="14" rx="2"/>
+    <text class="sub" x="160" y="11" fill="#475569">build / deploy</text>
+
+    <rect class="node act-fill act-str" x="260" y="0" width="14" height="14" rx="2"/>
+    <text class="sub" x="280" y="11" fill="#475569">workflows</text>
+
+    <circle class="node out-fill out-str" cx="367" cy="7" r="7"/>
+    <text class="sub" x="380" y="11" fill="#475569">outputs</text>
+
+    <!-- Solid arrow: primary data flow -->
+    <line class="edge" x1="450" y1="7" x2="490" y2="7" marker-end="url(#arrow)"/>
+    <text class="sub" x="498" y="11" fill="#475569">data flow</text>
+
+    <!-- Dashed arrow: writeback / gate -->
+    <line class="edge-soft" x1="580" y1="7" x2="620" y2="7" marker-end="url(#arrow-dashed)"/>
+    <text class="sub" x="628" y="11" fill="#475569">writeback / gate</text>
   </g>
 </svg>
