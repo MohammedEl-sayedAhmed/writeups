@@ -1,24 +1,34 @@
 #!/usr/bin/env python3
-"""Swap `tags` <-> `devto_tags` in markdown frontmatter around the dev.to crosspost.
+"""Rewrite markdown frontmatter so it's safe for dev.to, then restore it.
 
-dev.to's article API only accepts up to 4 lowercase-alphanumeric tags, while
-the site happily takes a richer comma-separated set with hyphens. When a post
-sets `devto_tags:` in frontmatter, this script rewrites the file in place so
-that `publish-devto` sees the lean set on `tags:`, and then restores the
-original after the action has run.
+Two independent dev.to API constraints are handled:
+
+1. `tags`: dev.to caps at 4 lowercase-alphanumeric tags, but the site
+   happily takes a richer set. When a post sets `devto_tags:` in
+   frontmatter, the swap moves that lean value onto `tags:` for the
+   duration of the publish, then restores.
+
+2. `date`: dev.to (Forem) reads the `date:` frontmatter as
+   `published_at`, and on article *create* it rejects any timestamp
+   older than "now" with HTTP 422 "Published at only future or
+   current published_at allowed". The swap strips `date:` so Forem
+   defaults `published_at` to the moment of publish; the line is
+   restored after. Astro reads `pubDate`, not `date`, so removing
+   `date:` does not affect the rendered blog.
 
 Modes:
     to-devto <files...>
         For each file whose frontmatter contains a `devto_tags:` line,
-        record the original `tags:` value (and the `devto_tags:` value
-        itself) into a sidecar JSON file at the repository root, then
-        overwrite `tags:` with the `devto_tags:` value and delete the
-        `devto_tags:` line. Files without `devto_tags:` are left alone.
+        record the original `tags:` and `date:` values (and the
+        `devto_tags:` value itself) into a sidecar JSON file at the
+        repository root, overwrite `tags:` with the lean value, and
+        delete the `devto_tags:` and `date:` lines. Files without
+        `devto_tags:` are left alone.
 
     restore <files...>
         For each file recorded in the sidecar, put the original `tags:`
-        value back and re-insert the `devto_tags:` line directly below
-        the `tags:` line. Removes the sidecar at the end.
+        and `date:` values back and re-insert the `devto_tags:` line.
+        Removes the sidecar at the end.
 
 The sidecar lives at `.tags-backup.json` relative to the working directory.
 Idempotent: running `to-devto` twice merges into the existing sidecar without
@@ -81,19 +91,25 @@ def to_devto(file_paths: list[str]) -> None:
         if devto_tags is None:
             continue
         original_tags = get_line_value(fm, "tags")
+        original_date = get_line_value(fm, "date")
         # Idempotent: do not overwrite an existing backup with the already-swapped state.
         if str(path) not in backups:
             backups[str(path)] = {
                 "tags": original_tags,
                 "devto_tags": devto_tags,
+                "date": original_date,
             }
         if original_tags is None:
             fm = fm.rstrip() + f"\ntags: {devto_tags}"
         else:
             fm = replace_value(fm, "tags", devto_tags)
         fm = remove_line(fm, "devto_tags")
+        # Forem reads `date:` as published_at and rejects past timestamps
+        # on create. Strip it so Forem defaults published_at to "now".
+        if original_date is not None:
+            fm = remove_line(fm, "date")
         path.write_text(opener + fm + closer + body)
-        print(f"to-devto: {path}: tags <- {devto_tags!r}")
+        print(f"to-devto: {path}: tags <- {devto_tags!r}, date stripped")
         touched = True
     if touched:
         save_sidecar(backups)
@@ -118,6 +134,7 @@ def restore(file_paths: list[str]) -> None:
         opener, fm, closer, body = parts
         original_tags = record.get("tags")
         devto_tags = record.get("devto_tags")
+        original_date = record.get("date")
         if original_tags is not None:
             if get_line_value(fm, "tags") is None:
                 fm = fm.rstrip() + f"\ntags: {original_tags}"
@@ -131,8 +148,17 @@ def restore(file_paths: list[str]) -> None:
                 fm,
                 count=1,
             )
+        if original_date is not None and get_line_value(fm, "date") is None:
+            # Re-insert at the end of the frontmatter so we don't disturb
+            # the order of other fields. Astro doesn't read `date:`; the
+            # restored line is purely so a future re-run of to-devto sees
+            # what to back up next time.
+            fm = fm.rstrip() + f"\ndate: {original_date}"
         path.write_text(opener + fm + closer + body)
-        print(f"restore: {path}: tags <- {original_tags!r}, devto_tags <- {devto_tags!r}")
+        print(
+            f"restore: {path}: tags <- {original_tags!r}, "
+            f"devto_tags <- {devto_tags!r}, date <- {original_date!r}"
+        )
     SIDECAR.unlink()
 
 
