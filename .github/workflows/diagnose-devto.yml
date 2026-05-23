@@ -1,0 +1,60 @@
+name: Diagnose dev.to publish
+
+# Manual-only diagnostic. Reproduces a single publish call against dev.to
+# so the response body — which sinedied/publish-devto discards — appears
+# in the workflow log. Triggered from the Actions tab; no auto-fire.
+#
+# The diagnostic posts the article with `published: false` (draft), so a
+# successful body is created as a draft on dev.to rather than a live post.
+# Forem validates the body the same way for drafts and published articles,
+# so a 422 here is the same 422 the cross-post path hits.
+#
+# The DEVTO_TOKEN secret is exposed only as an env var to the one script
+# step that needs it. The script never echoes the token and redacts any
+# occurrence in Forem's response before printing. Additionally, GitHub
+# Actions auto-masks any known repository secret from job logs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: 'Path to the markdown file to test'
+        required: false
+        default: 'src/content/blog/clipman-clipboard-manager-wayland-gnome.md'
+
+permissions: {}
+
+concurrency:
+  group: diagnose-devto
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Skip if DEVTO_TOKEN is not configured
+        env:
+          DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
+        run: |
+          if [ -z "$DEVTO_TOKEN" ]; then
+            echo '::error::DEVTO_TOKEN secret is not configured on this repo.'
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Input is passed via env, never interpolated into the shell command,
+      # so a hostile workflow_dispatch input cannot inject shell syntax.
+      - name: Run diagnose-devto.py
+        env:
+          DEVTO_TOKEN: ${{ secrets.DEVTO_TOKEN }}
+          FILE: ${{ inputs.file }}
+        run: |
+          python3 scripts/diagnose-devto.py "$FILE"
