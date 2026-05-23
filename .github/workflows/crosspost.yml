@@ -190,11 +190,15 @@ jobs:
           # can mis-resolve when multiple PRs touch the same branch
           # (concurrency:cancel-in-progress is off, so simultaneous runs
           # can exist briefly).
+          # No --label: the repo does not have an 'automated' label
+          # configured, and `gh pr create --label` errors out if the
+          # named label is missing (even though the PR itself gets
+          # created). The auto-PR is easy to identify by its title
+          # prefix `chore(crosspost):` anyway.
           pr_url="$(gh pr create \
             --base main \
             --head "$BRANCH" \
             --title 'chore(crosspost): dev.to writeback + tag restore' \
-            --body "Automated cross-post writeback opened by crosspost.yml run ${RUN_ID}. The dev.to article id (if newly published) has been written into the post frontmatter; rich tags and \`date\` have been restored after the swap." \
-            --label automated)"
+            --body "Automated cross-post writeback opened by crosspost.yml run ${RUN_ID}. The dev.to article id (if newly published) has been written into the post frontmatter; rich tags and \`date\` have been restored after the swap.")"
           echo "Opened ${pr_url}"
           gh pr merge "$pr_url" --auto --squash --delete-branch
