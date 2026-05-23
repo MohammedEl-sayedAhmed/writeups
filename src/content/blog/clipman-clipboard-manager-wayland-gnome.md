@@ -7,7 +7,7 @@ devto_tags: 'linux, opensource, python, wayland'
 published: true
 canonical_url: 'https://mammar.pages.dev/blog/clipman-clipboard-manager-wayland-gnome/'
 id: 3728942
-date: '2026-05-22T20:06:01Z'
+date: '2026-05-23T00:28:27Z'
 ---
 
 I copy things all day. A line from a terminal into a doc, a token from a doc into a terminal, an OTP from an authenticator into a browser, a URL from chat into a code comment. On Windows the muscle memory is `Win+V`: a small panel pops up with the last few things I copied and I pick one. On Linux there isn't a built-in equivalent. There are tools, but the ones I tried either flicker the screen, miss copies, leak passwords into a long-lived history file, or stop working the moment a Wayland session starts.
