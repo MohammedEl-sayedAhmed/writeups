@@ -66,6 +66,38 @@ def restore_tags(file_path: str) -> None:
         pass
 
 
+def _parse_args(argv: list[str]) -> tuple[str, int | None]:
+    """Return (file_path, article_id_or_None) parsed from argv.
+
+    Two invocations:
+        diagnose-devto.py [path]                 -> POST (create as draft)
+        diagnose-devto.py [path] --update <id>   -> PUT  (update existing)
+    """
+    path = DEFAULT_FILE
+    article_id: int | None = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--update":
+            i += 1
+            if i >= len(argv):
+                print("error: --update requires an article id", file=sys.stderr)
+                sys.exit(2)
+            try:
+                article_id = int(argv[i])
+            except ValueError:
+                print(f"error: --update expects an integer id, got {argv[i]!r}",
+                      file=sys.stderr)
+                sys.exit(2)
+        elif a.startswith("-"):
+            print(f"error: unknown flag {a!r}", file=sys.stderr)
+            sys.exit(2)
+        else:
+            path = a
+        i += 1
+    return path, article_id
+
+
 def main() -> int:
     token = os.environ.get("DEVTO_TOKEN", "").strip()
     if not token:
@@ -76,7 +108,7 @@ def main() -> int:
         )
         return 2
 
-    file_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_FILE
+    file_path, article_id = _parse_args(sys.argv[1:])
     if not Path(file_path).exists():
         print(f"error: file not found: {file_path}", file=sys.stderr)
         return 2
@@ -103,20 +135,30 @@ def main() -> int:
 
     try:
         body_markdown = Path(file_path).read_text(encoding="utf-8")
-        # Force draft so a successful repro does not put a half-debugged
-        # article on the user's public dev.to feed. Forem validates the
-        # body the same way for draft and published articles, so we still
-        # see the same 422 if the body is the problem.
-        payload = json.dumps(
-            {"article": {"body_markdown": body_markdown, "published": False}}
-        ).encode("utf-8")
+        if article_id is None:
+            # POST = create as draft. Forem validates the body the same
+            # way for draft and published articles, so we still see the
+            # same 422 if the body is the problem.
+            endpoint = DEVTO_ENDPOINT
+            method = "POST"
+            payload_obj = {"article": {
+                "body_markdown": body_markdown,
+                "published": False,
+            }}
+        else:
+            # PUT = update an existing article in place. The keep_current
+            # state of `published` is whatever the article is already set
+            # to on dev.to; we do not flip it here.
+            endpoint = f"{DEVTO_ENDPOINT}/{article_id}"
+            method = "PUT"
+            payload_obj = {"article": {"body_markdown": body_markdown}}
+        payload = json.dumps(payload_obj).encode("utf-8")
         print(
-            f"-> POST {DEVTO_ENDPOINT}  "
-            f"(body_markdown length: {len(body_markdown):,} bytes, "
-            "published=false)"
+            f"-> {method} {endpoint}  "
+            f"(body_markdown length: {len(body_markdown):,} bytes)"
         )
         req = urllib.request.Request(
-            DEVTO_ENDPOINT,
+            endpoint,
             data=payload,
             headers={
                 "api-key": token,
@@ -124,7 +166,7 @@ def main() -> int:
                 "User-Agent": "diagnose-devto/1.0 (manual repro)",
                 "Accept": "application/vnd.forem.api-v1+json",
             },
-            method="POST",
+            method=method,
         )
 
         status: int
