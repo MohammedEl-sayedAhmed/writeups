@@ -115,14 +115,9 @@ End of background.
 
 Clipman is two cooperating processes plus a database. There is a daemon — a long-running background process with no UI of its own (`clipman.py` plus the `clipman/` Python package) — that runs as a `systemd --user` service and owns the popup window, the storage, the settings, and the D-Bus surface. There is a GNOME Shell extension (`extension/extension.js`) that lives inside the running Shell process and watches the clipboard. They talk over D-Bus on the session bus.
 
-<p align="center">
-  <img src="/clipman-architecture.png"
-       alt="Clipman architecture diagram"
-       width="100%">
-</p>
-<p align="center"><sub>
-  Source: <a href="https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a>
-</sub></p>
+![Clipman architecture diagram](https://mammar.pages.dev/clipman-architecture.png)
+
+*Source: [ARCHITECTURE.md](https://github.com/MohammedEl-sayedAhmed/clipman/blob/main/ARCHITECTURE.md)*
 
 ### Why our own extension instead of `wl-paste --watch`
 
@@ -321,12 +316,10 @@ That is a lot of words for a one-person project. The honest reasons:
 
 The cost is more concentrated than it looks. One of the ADRs (0007, the update-check posture) genuinely shipped *alongside* the change it describes, in the same feature PR. Most of the others were written after the fact, in a couple of docs-sweep PRs in May. The bulk of the prose docs — ARCHITECTURE, GOVERNANCE, maintaining, threat-model, ci-cd, dbus-api, translating — landed in a single afternoon on 2026-05-22 as seven back-to-back PRs in about fifteen minutes of merge time. So it wasn't continuous discipline; it was one extended sitting where I forced myself to write down what I'd been carrying in my head, while it was still fresh.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/dark-theme.png" alt="Dark theme" width="320">&nbsp;&nbsp;<img src="https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/light-theme.png" alt="Light theme" width="320">
-</p>
-<p align="center"><sub>
-  Dark and light themes (Catppuccin Mocha / Latte). Source: <a href="https://github.com/MohammedEl-sayedAhmed/clipman">repository README</a>.
-</sub></p>
+![Clipman dark theme — Catppuccin Mocha](https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/dark-theme.png)
+![Clipman light theme — Catppuccin Latte](https://raw.githubusercontent.com/MohammedEl-sayedAhmed/clipman/main/docs/light-theme.png)
+
+*Dark and light themes (Catppuccin Mocha / Latte). Source: [repository README](https://github.com/MohammedEl-sayedAhmed/clipman).*
 
 ## What's next
 
