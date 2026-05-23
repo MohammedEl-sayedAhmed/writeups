@@ -4,6 +4,13 @@ Source repository for a personal technical blog. Built with [Astro](https://astr
 
 ## Architecture
 
+<p align="center"><img src="docs/architecture.svg" width="100%" alt="writeups architecture"></p>
+
+Source of truth is markdown in `src/content/blog/`. A push to `main` fans out to parallel pipelines: Cloudflare Pages rebuilds the Astro site (including the satori/resvg per-post Open Graph images) and deploys it to `mammar.pages.dev`; `crosspost.yml` publishes or updates the dev.to copy via `sinedied/publish-devto` and opens an auto-merging PR — the dashed loop is that PR writing the dev.to article `id` back into the post's frontmatter so subsequent pushes update the same article instead of creating duplicates; `send-webmentions.yml` pings every outgoing link's webmention endpoint; `test.yml` runs the Vitest and Playwright suites as required checks that gate the auto-merge PR. `diagnose-devto.yml` is a manual-only diagnostic against the Forem API.
+
+<details>
+<summary>Mermaid fallback</summary>
+
 ```mermaid
 flowchart LR
     src["src/content/blog/*.md"]
@@ -21,7 +28,7 @@ flowchart LR
     gh -.->|writes devto id<br/>back to frontmatter| src
 ```
 
-Source of truth is markdown in `src/content/blog/`. A push to `main` fans out to two parallel pipelines: Astro builds and deploys to Cloudflare Pages, and the GitHub Action cross-posts to dev.to. The dashed line is the cross-post Action committing the dev.to article `id` back so subsequent pushes update the same article instead of creating duplicates.
+</details>
 
 ## Features
 
