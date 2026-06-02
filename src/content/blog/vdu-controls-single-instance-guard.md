@@ -5,6 +5,8 @@ pubDate: Jun 2 2026
 tags: 'linux, opensource, python, qt'
 published: true
 canonical_url: 'https://mammar.pages.dev/blog/vdu-controls-single-instance-guard/'
+id: 3802757
+date: '2026-06-02T11:30:47Z'
 ---
 
 A few weeks ago I [sent my first PR](/blog/vdu-controls-philips-evnia-brightness-slider-fix/) to `vdu_controls`, a small Qt tray app for controlling external monitors over DDC/CI. That one was a parser bug. This is the second, and it started the same way every good bug does: I noticed something on my own machine that shouldn't be possible.
