@@ -1,0 +1,144 @@
+---
+import { type CollectionEntry, getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Footer from '../../components/Footer.astro';
+import Header from '../../components/Header.astro';
+import { SITE_TITLE } from '../../consts';
+
+const notes = (await getCollection('notes')).sort(
+	(a, b) => a.data.course.localeCompare(b.data.course) || a.data.order - b.data.order,
+);
+
+type Course = {
+	course: string;
+	sections: { section: string; items: { id: string; title: string; description?: string }[] }[];
+};
+const courses: Course[] = [];
+for (const n of notes as CollectionEntry<'notes'>[]) {
+	let c = courses.find((x) => x.course === n.data.course);
+	if (!c) {
+		c = { course: n.data.course, sections: [] };
+		courses.push(c);
+	}
+	let s = c.sections.find((x) => x.section === n.data.section);
+	if (!s) {
+		s = { section: n.data.section, items: [] };
+		c.sections.push(s);
+	}
+	s.items.push({ id: n.id, title: n.data.title, description: n.data.description });
+}
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={`Notes · ${SITE_TITLE}`} description="Private, course-structured study notes." />
+	</head>
+	<body>
+		<Header />
+		<main data-pagefind-ignore>
+			<div class="container container--content">
+				<header class="page-head">
+					<h1>Notes</h1>
+					<p class="lead">Private, course-structured study notes — terse, interview-revision style.</p>
+				</header>
+
+				{
+					courses.map((c) => (
+						<section class="course">
+							<h2>{c.course}</h2>
+							{c.sections.map((s) => (
+								<div class="section">
+									<h3>{s.section}</h3>
+									<ul class="note-list">
+										{s.items.map((it) => (
+											<li>
+												<a href={`/notes/${it.id}/`} class="note-link">
+													<span class="note-title">{it.title}</span>
+													{it.description && <span class="note-desc">{it.description}</span>}
+												</a>
+											</li>
+										))}
+									</ul>
+								</div>
+							))}
+						</section>
+					))
+				}
+			</div>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	.page-head {
+		margin-bottom: var(--space-12);
+	}
+	.page-head h1 {
+		font-size: var(--text-5xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-4);
+	}
+	.lead {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0;
+		max-width: 36rem;
+	}
+	.course {
+		margin-bottom: var(--space-12);
+	}
+	.course h2 {
+		font-size: var(--text-2xl);
+		letter-spacing: -0.02em;
+		padding-bottom: var(--space-3);
+		border-bottom: 1px solid var(--border);
+		margin-bottom: var(--space-6);
+	}
+	.section {
+		margin-bottom: var(--space-8);
+	}
+	.section h3 {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin-bottom: var(--space-4);
+	}
+	.note-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+	.note-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		transition:
+			border-color var(--transition),
+			background var(--transition);
+	}
+	.note-link:hover {
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+	.note-title {
+		display: block;
+		font-weight: 600;
+		color: var(--text);
+	}
+	.note-desc {
+		display: block;
+		font-size: var(--text-sm);
+		color: var(--text-muted);
+		margin-top: 2px;
+	}
+</style>

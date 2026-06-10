@@ -37,4 +37,17 @@ const blog = defineCollection({
 		}),
 });
 
-export const collections = { blog };
+const notes = defineCollection({
+	// Private, auth-gated study notes. Deliberately separate from `blog` so the
+	// dev.to crosspost workflow (which only reads `blog`) never touches them.
+	loader: glob({ base: './src/content/notes', pattern: '**/*.{md,mdx}' }),
+	schema: z.object({
+		title: z.string(),
+		description: z.string().optional(),
+		course: z.string(), // e.g. "ITI SQL Server"
+		section: z.string(), // group label, e.g. "Video 1 — Intro, Design & ERD"
+		order: z.number(), // global order within the course (drives sidebar + prev/next)
+	}),
+});
+
+export const collections = { blog, notes };

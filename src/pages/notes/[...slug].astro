@@ -1,0 +1,73 @@
+---
+import { type CollectionEntry, getCollection, render } from 'astro:content';
+import NotePost from '../../layouts/NotePost.astro';
+
+type OutlineItem = { id: string; title: string };
+type OutlineCourse = {
+	course: string;
+	sections: { section: string; items: OutlineItem[] }[];
+};
+
+export async function getStaticPaths() {
+	// Everything getStaticPaths needs must live inside it (Astro extracts this
+	// export into its own chunk; sibling frontmatter helpers aren't in scope).
+	const notes = (await getCollection('notes')).sort(
+		(a, b) => a.data.course.localeCompare(b.data.course) || a.data.order - b.data.order,
+	);
+
+	const outline: OutlineCourse[] = [];
+	for (const n of notes) {
+		let c = outline.find((x) => x.course === n.data.course);
+		if (!c) {
+			c = { course: n.data.course, sections: [] };
+			outline.push(c);
+		}
+		let s = c.sections.find((x) => x.section === n.data.section);
+		if (!s) {
+			s = { section: n.data.section, items: [] };
+			c.sections.push(s);
+		}
+		s.items.push({ id: n.id, title: n.data.title });
+	}
+
+	return notes.map((note) => {
+		// prev/next stay within the same course
+		const course = notes.filter((n) => n.data.course === note.data.course);
+		const i = course.findIndex((n) => n.id === note.id);
+		const prev = course[i - 1] ?? null;
+		const next = course[i + 1] ?? null;
+		return {
+			params: { slug: note.id },
+			props: {
+				note,
+				outline,
+				prev: prev ? { id: prev.id, title: prev.data.title } : null,
+				next: next ? { id: next.id, title: next.data.title } : null,
+			},
+		};
+	});
+}
+
+type Props = {
+	note: CollectionEntry<'notes'>;
+	outline: OutlineCourse[];
+	prev: OutlineItem | null;
+	next: OutlineItem | null;
+};
+
+const { note, outline, prev, next } = Astro.props as Props;
+const { Content } = await render(note);
+---
+
+<NotePost
+	title={note.data.title}
+	description={note.data.description}
+	course={note.data.course}
+	section={note.data.section}
+	currentId={note.id}
+	outline={outline}
+	prev={prev}
+	next={next}
+>
+	<Content />
+</NotePost>

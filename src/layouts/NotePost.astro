@@ -1,0 +1,261 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_TITLE } from '../consts';
+
+export type OutlineItem = { id: string; title: string };
+export type OutlineSection = { section: string; items: OutlineItem[] };
+export type OutlineCourse = { course: string; sections: OutlineSection[] };
+
+type Props = {
+	title: string;
+	description?: string;
+	course: string;
+	section: string;
+	currentId: string;
+	outline: OutlineCourse[];
+	prev: OutlineItem | null;
+	next: OutlineItem | null;
+};
+
+const { title, description, course, section, currentId, outline, prev, next } =
+	Astro.props as Props;
+const noteUrl = (id: string) => `/notes/${id}/`;
+---
+
+<html lang="en">
+	<head>
+		<BaseHead title={`${title} · ${SITE_TITLE}`} description={description ?? title} />
+	</head>
+	<body>
+		<Header />
+		<main data-pagefind-ignore>
+			<div class="notes-shell container">
+				<aside class="notes-nav" aria-label="Course outline">
+					{
+						outline.map((c) => (
+							<div class="course-group">
+								<p class="course-title">{c.course}</p>
+								{c.sections.map((s) => (
+									<div class="section-group">
+										<p class="section-title">{s.section}</p>
+										<ul>
+											{s.items.map((it) => (
+												<li>
+													<a
+														href={noteUrl(it.id)}
+														class:list={['note-link', { active: it.id === currentId }]}
+														aria-current={it.id === currentId ? 'page' : undefined}
+													>
+														{it.title}
+													</a>
+												</li>
+											))}
+										</ul>
+									</div>
+								))}
+							</div>
+						))
+					}
+				</aside>
+
+				<article class="notes-article">
+					<header class="note-head">
+						<p class="eyebrow">{course} · {section}</p>
+						<h1>{title}</h1>
+						{description && <p class="description">{description}</p>}
+					</header>
+
+					<div class="prose">
+						<slot />
+					</div>
+
+					{
+						(prev || next) && (
+							<nav class="post-nav" aria-label="Note navigation">
+								{prev ? (
+									<a href={noteUrl(prev.id)} class="nav-card prev">
+										<span class="nav-label">← Previous</span>
+										<span class="nav-title">{prev.title}</span>
+									</a>
+								) : (
+									<span class="nav-spacer" aria-hidden="true" />
+								)}
+								{next ? (
+									<a href={noteUrl(next.id)} class="nav-card next">
+										<span class="nav-label">Next →</span>
+										<span class="nav-title">{next.title}</span>
+									</a>
+								) : (
+									<span class="nav-spacer" aria-hidden="true" />
+								)}
+							</nav>
+						)
+					}
+				</article>
+			</div>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	.notes-shell {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--space-8);
+	}
+
+	/* Sidebar */
+	.notes-nav {
+		font-size: var(--text-sm);
+	}
+	.course-title {
+		font-size: var(--text-xs);
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text);
+		margin: 0 0 var(--space-3);
+	}
+	.section-group {
+		margin-bottom: var(--space-5);
+	}
+	.section-title {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-2);
+	}
+	.notes-nav ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.note-link {
+		display: block;
+		color: var(--text-muted);
+		text-decoration: none;
+		line-height: 1.4;
+		padding: 4px var(--space-3);
+		border-left: 2px solid transparent;
+		margin-left: -2px;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast),
+			background var(--transition-fast);
+	}
+	.note-link:hover {
+		color: var(--text);
+	}
+	.note-link.active {
+		color: var(--text);
+		font-weight: 600;
+		border-left-color: var(--accent);
+		background: var(--bg-subtle);
+	}
+
+	/* Article */
+	.note-head {
+		margin-bottom: var(--space-8);
+	}
+	.eyebrow {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+		margin: 0 0 var(--space-2);
+	}
+	.note-head h1 {
+		font-size: var(--text-4xl);
+		letter-spacing: -0.03em;
+		margin-bottom: var(--space-3);
+	}
+	.note-head .description {
+		font-size: var(--text-lg);
+		color: var(--text-muted);
+		margin: 0;
+	}
+
+	/* Desktop: sticky sidebar + prose column */
+	@media (min-width: 960px) {
+		.notes-shell {
+			grid-template-columns: 250px minmax(0, var(--width-prose));
+			gap: var(--space-12);
+			justify-content: center;
+			align-items: start;
+		}
+		.notes-nav {
+			position: sticky;
+			top: calc(var(--header-height) + var(--space-6));
+			max-height: calc(100vh - var(--header-height) - 3rem);
+			overflow-y: auto;
+			padding-bottom: var(--space-4);
+		}
+	}
+
+	/* Prev/next (mirrors the blog's post-nav) */
+	.post-nav {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-4);
+		margin-top: var(--space-12);
+		padding-top: var(--space-8);
+		border-top: 1px solid var(--border);
+	}
+	.nav-card {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		text-decoration: none;
+		color: inherit;
+		transition:
+			border-color var(--transition),
+			background var(--transition);
+	}
+	.nav-card:hover {
+		border-color: var(--border-strong);
+		background: var(--bg-elevated);
+	}
+	.nav-card.next {
+		text-align: right;
+	}
+	.nav-label {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-subtle);
+	}
+	.nav-title {
+		font-size: var(--text-base);
+		font-weight: 600;
+		color: var(--text);
+		line-height: 1.35;
+	}
+	.nav-spacer {
+		display: block;
+	}
+
+	@media (max-width: 640px) {
+		.note-head h1 {
+			font-size: var(--text-3xl);
+		}
+		.post-nav {
+			grid-template-columns: 1fr;
+		}
+		.nav-card.next {
+			text-align: left;
+		}
+	}
+</style>
