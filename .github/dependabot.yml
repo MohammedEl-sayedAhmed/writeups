@@ -20,8 +20,23 @@ updates:
     labels:
       - dependencies
       - npm
-    # Group minor and patch updates to reduce PR noise; majors stay individual.
     groups:
+      # astro core and its first-party integrations are peer-coupled: a new
+      # astro major requires the matching @astrojs/* major and vice versa
+      # (@astrojs/mdx@7 peer-requires astro@^7). Group ALL update-types,
+      # majors included, so co-dependent bumps travel in one PR that `npm ci`
+      # can resolve. Dependabot assigns each dependency to the first matching
+      # group, so this must precede minor-and-patch.
+      astro:
+        patterns:
+          - "astro"
+          - "@astrojs/*"
+        update-types:
+          - major
+          - minor
+          - patch
+      # Everything else: batch minor/patch to reduce PR noise; other majors
+      # stay individual.
       minor-and-patch:
         update-types:
           - minor
