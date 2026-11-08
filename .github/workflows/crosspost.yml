@@ -111,9 +111,13 @@ jobs:
 
       # 5) Publish to dev.to. Tell the action to push its id-writeback
       #    commit to the working branch, not main.
+      #    Pinned to a main commit, not a tag: 4c6f107 (upstream PR 40)
+      #    declares node24 and has no release tag yet. Its bundled code
+      #    is the same as the v2 tag (c713cc0). Upstream re-creates the
+      #    v2 tag in place, so review any new SHA before bumping.
       - name: Publish articles to dev.to
         if: steps.gate.outputs.skip != 'true'
-        uses: sinedied/publish-devto@c713cc0934b35cb3df9fca759b98e36e6a540a85 # v2
+        uses: sinedied/publish-devto@4c6f107b77261e49cb42e77c58fc05df4652ec76 # main (PR 40, node24)
         with:
           devto_key: ${{ secrets.DEVTO_TOKEN }}
           github_token: ${{ secrets.CROSSPOST_PAT }}
