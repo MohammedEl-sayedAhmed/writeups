@@ -1,7 +1,7 @@
 # writeups — project context for AI coding agents
 
 Personal technical blog. Astro static site on Cloudflare Pages, with automated cross-post
-to dev.to, full-text search (Pagefind), dynamically generated OG images, and outbound
+to dev.to, full-text search (Pagefind), OG images generated at build time, and outbound
 webmentions.
 
 ## Quick orientation
@@ -13,13 +13,13 @@ webmentions.
 
 ## Architecture
 
-See [README.md](README.md#architecture) for the Mermaid diagram. Source of truth = markdown in `src/content/blog/`. Push to `main` fans out to:
+See [README.md](README.md#architecture) for the architecture diagram (SVG, with a Mermaid fallback). Source of truth = markdown in `src/content/blog/`. Push to `main` fans out to:
 
 - **Cloudflare Pages** → builds Astro → `mammar.pages.dev`. The build also runs **Pagefind** to index the site for client-side search.
 - **GitHub Actions:**
-  - `crosspost.yml` → publishes/updates the same post on dev.to via `sinedied/publish-devto`, then commits the dev.to article `id` back to the markdown frontmatter.
-  - `send-webmentions.yml` → after a post is live, discovers link targets and sends outbound webmentions (webmention.io); only makes outbound HTTPS POSTs.
-  - `test.yml` → CI on PRs: vitest unit tests + Playwright e2e (content integrity).
+  - `crosspost.yml` → publishes/updates the same post on dev.to via `sinedied/publish-devto`, then opens an auto-merge PR (`chore(crosspost): dev.to writeback + tag restore`) that writes the dev.to article `id` and `date` into the frontmatter. The PR merges after `unit` and `e2e` pass.
+  - `send-webmentions.yml` → waits 90 seconds for the deploy, then runs `@remy/webmention` on every post. It fetches each live post and each link target, and posts to each target's own webmention endpoint. It does not check that a post is live. (webmention.io is only this site's receiving endpoint.)
+  - `test.yml` → CI on PRs and on pushes to `main`: vitest unit tests + Playwright e2e (search, share buttons, comments, view transitions, content integrity).
   - `diagnose-devto.yml` → manual/diagnostic workflow for troubleshooting dev.to publishing.
 
 Branches other than `main` get **preview deployments** at `<commit>.mammar.pages.dev`; the cross-post workflow does *not* fire on them.
@@ -27,8 +27,8 @@ Branches other than `main` get **preview deployments** at `<commit>.mammar.pages
 ## Toolchain / versions
 
 - **Node 22** (`.nvmrc`).
-- **Astro is pinned EXACTLY to `7.1.1`** (no caret). Do **not** bump to 7.2.x casually: astro 7.2.x daemonises `astro preview`, which breaks the Playwright e2e `webServer` — fix the e2e harness before unpinning.
-- **Search:** Pagefind (built into `npm run build`). **OG images:** generated dynamically with `satori` + `@resvg/resvg-js`.
+- **Astro is pinned EXACTLY to `7.1.1`** (no caret). `@astrojs/mdx` is pinned exactly too (`7.0.3`). Do **not** bump to 7.2.x casually: astro 7.2.x daemonises `astro preview`, which breaks the Playwright e2e `webServer` — fix the e2e harness before unpinning.
+- **Search:** Pagefind (built into `npm run build`). **OG images:** generated at build time with `satori` + `@resvg/resvg-js`.
 
 ## Workflow rules
 
@@ -48,10 +48,15 @@ Branches other than `main` get **preview deployments** at `<commit>.mammar.pages
 | `pubDate` | yes | parsable date string |
 | `updatedDate` | no | parsable date string |
 | `heroImage` | no | path to an image in `src/assets/` |
-| `tags` | no | comma-separated string, max 4, real dev.to tag slugs (e.g. `linux, python, debugging`) |
+| `tags` | no | comma-separated string (e.g. `linux, python, debugging`). Drives tag chips, tag archives, OG images and related posts. If `devto_tags` is not set, these also go to dev.to, so then keep them to max 4 real dev.to tag slugs. |
+| `devto_tags` | no | dev.to-safe subset of `tags` (max 4, lowercase alphanumeric). The cross-post swaps it in for `tags` before publishing. |
 | `canonical_url` | no | `https://mammar.pages.dev/blog/<slug>/` |
-| `published` | no (default true via schema) | `false` = dev.to draft, `true` = dev.to live. Site (Cloudflare) doesn't care about this. |
+| `published` | no | `false` = dev.to draft, `true` = dev.to live. Set it explicitly: the schema default (`true`) only reaches the site, which never reads the field; the cross-post reads the raw file. |
+| `comments` | no | default `true`; `false` hides the Giscus comments on that post. |
 | `id` | no | **Set by the action after first publish, do not edit by hand.** Identifies the dev.to article for updates. |
+| `date` | no | **Written by the cross-post, do not edit by hand.** |
+
+`.mdx` posts render on the site, but the cross-post, the tag swap and the webmentions read only `*.md` files.
 
 ## Local development
 
@@ -62,19 +67,19 @@ npm run dev      # http://localhost:4321
 npm run build    # astro build + Pagefind index → ./dist; run before pushing to verify schema
 npm run preview  # serves ./dist locally
 npm test         # vitest unit tests
-npm run test:e2e # Playwright e2e (content integrity) — see the astro 7.1.1 note above
+npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwright install chromium` once — see the astro 7.1.1 note above
 ```
 
 ## Testing
 
-- **Unit:** vitest (`npm test`). **E2e:** Playwright (`npm run test:e2e`), also run in CI by `test.yml` on PRs.
+- **Unit:** vitest (`npm test`). **E2e:** Playwright (`npm run test:e2e`), also run in CI by `test.yml` on PRs and on pushes to `main`.
 - Keep e2e green before merging. The astro-preview daemon caveat (see *Toolchain*) will break the e2e `webServer` if astro is unpinned to 7.2.x.
 
 ## Security posture of the workflows
 
 The workflows are hardened — keep them that way:
 
-- Third-party actions pinned to commit SHAs (not tags), with inline `# vX.Y.Z` markers Dependabot reads.
+- Third-party actions pinned to commit SHAs (not tags), with inline version markers (`# vX.Y.Z`, or `# v2` for `publish-devto`) that Dependabot reads.
 - Default-deny workflow permissions; least-privilege per job (e.g. `contents: write` only where needed).
 - Job timeouts + concurrency groups to prevent races.
 - `.github/dependabot.yml` auto-PRs weekly action + npm updates.
@@ -83,7 +88,7 @@ Do not relax any of this. Pin every new third-party action to a SHA.
 
 ## Things deliberately *not* set up
 
-- **Hashnode cross-posting.** Their publish-from-GitHub flow moved to a paid tier in 2025/2026; evaluated and skipped. Don't re-add unless the user explicitly changes their mind on cost.
+- **Hashnode cross-posting.** Their publish flow moved to a paid tier; evaluated and skipped. Don't re-add unless the user explicitly changes their mind on cost.
 - **Custom domain.** Currently `mammar.pages.dev`. No domain purchased.
 - **Newsletter / analytics.** None.
 
@@ -103,4 +108,4 @@ gh pr create --base main --head post/<slug> --title "..." --body "..."
 After merge:
 - Cloudflare deploys the post to `https://mammar.pages.dev/blog/<slug>/`.
 - Cross-post action creates/updates the dev.to article (draft if `published: false`, live if `true`).
-- A bot commit `chore: update published articles [skip ci]` lands on `main` writing the dev.to `id` back. `git pull` before doing further work.
+- An auto-merge PR `chore(crosspost): dev.to writeback + tag restore` squash-merges into `main` and writes the dev.to `id` and `date` back. So far auto-merge has failed on this PR (#67), so check that it merged, then `git pull` before doing further work.

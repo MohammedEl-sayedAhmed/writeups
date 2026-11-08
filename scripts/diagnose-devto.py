@@ -4,8 +4,8 @@
 This is the manual diagnostic for the HTTP 422 we cannot see through
 sinedied/publish-devto (the action discards Forem's response body). It
 reproduces the same POST devto-cli would make, then prints exactly what
-Forem returns. Use it once to identify why the article was rejected, then
-delete the script (or commit it deliberately — your call).
+Forem returns. Run it when a publish fails to see why the article was
+rejected.
 
 Token handling:
 - DEVTO_TOKEN is read once from the process environment into a local
@@ -18,10 +18,10 @@ Tag handling:
   for the duration of the call via the existing .github/scripts/swap-tags.py.
 - Tags are restored on exit, including on Ctrl-C / SIGTERM.
 
-The article is sent with `published: false` so a successful body is created
-as a *draft*, not a live post. If you want to publish after a green run,
-either flip the draft on dev.to's UI or merge a follow-up to re-enable
-the workflow.
+Without --update, the article is sent with `published: false` so a
+successful body is created as a *draft*, not a live post. Flip the draft in
+dev.to's UI if you want it live. With --update <id>, the script sends a PUT
+and keeps the article's current published state.
 
 Usage:
     DEVTO_TOKEN=... python3 scripts/diagnose-devto.py [path/to/post.md]

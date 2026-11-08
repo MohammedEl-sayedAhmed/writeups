@@ -1,5 +1,6 @@
-# Auto-PRs when a pinned GitHub Action gets a security or version update.
+# Weekly version-update PRs for pinned GitHub Actions and npm packages.
 # Without this, SHA-pinning in workflows means we'd silently miss patches.
+# This file gives version updates only; Dependabot security updates are off.
 
 version: 2
 updates:
@@ -26,7 +27,8 @@ updates:
       # (@astrojs/mdx@7 peer-requires astro@^7). Group ALL update-types,
       # majors included, so co-dependent bumps travel in one PR that `npm ci`
       # can resolve. Dependabot assigns each dependency to the first matching
-      # group, so this must precede minor-and-patch.
+      # group, so this must precede minor-and-patch. Note: in November 2026
+      # an astro bump still arrived in the minor-and-patch group.
       astro:
         patterns:
           - "astro"
