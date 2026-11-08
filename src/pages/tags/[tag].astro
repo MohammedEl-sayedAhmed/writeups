@@ -6,8 +6,6 @@ import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import { SITE_TITLE } from '../../consts';
 
-const slugify = (t: string) => t.toLowerCase().replace(/\s+/g, '-');
-
 export async function getStaticPaths() {
 	const posts = await getCollection('blog');
 	const byTag = new Map<string, { label: string; posts: CollectionEntry<'blog'>[] }>();

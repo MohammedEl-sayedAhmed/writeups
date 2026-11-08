@@ -47,15 +47,16 @@ What the site does, beyond rendering markdown:
 | `src/content/blog/` | One markdown file per post |
 | `src/content.config.ts` | Frontmatter schema (Zod-validated at build time) |
 | `src/pages/` | Page templates: home, `about`, `blog/` index + `[...slug]` post template, `tags/` index + `[tag]` archive, `og/[...slug].png` build-time OG image, `rss.xml.js` feed |
-| `src/lib/` | Build-time helpers: dev.to URL lookup, related posts, share links, webmentions |
+| `src/lib/` | Build-time helpers: dev.to URL lookup, related posts, share links, webmentions, OG card layout |
 | `src/layouts/`, `src/components/` | Reusable view code (Header, Footer, BaseHead, TableOfContents, BlogPost layout, etc.) |
 | `src/styles/global.css` | Design tokens (colors, spacing, type scale) and prose styles |
 | `src/consts.ts` | Site title, description, author name + URL, social links, Giscus settings |
 | `astro.config.mjs` | Astro config (site URL, integrations, rehype plugins) |
 | `tests/unit/`, `tests/e2e/` | Vitest unit tests and Playwright e2e specs |
 | `vitest.config.ts`, `playwright.config.ts` | Test configs |
+| `eslint.config.js` | ESLint config (`typescript-eslint` and `eslint-plugin-astro` recommended rules) |
 | `.github/workflows/crosspost.yml` | dev.to cross-post automation |
-| `.github/workflows/test.yml` | `unit` and `e2e` jobs (required checks) |
+| `.github/workflows/test.yml` | `unit` (type check, lint, Vitest with coverage) and `e2e` jobs (required checks) |
 | `.github/workflows/send-webmentions.yml` | Outbound webmentions |
 | `.github/workflows/diagnose-devto.yml` | Manual dev.to diagnostic |
 | `.github/scripts/swap-tags.py` | Swaps `tags` and `devto_tags` around the dev.to publish |
@@ -77,7 +78,10 @@ npm run preview         # serves ./dist locally
 Tests:
 
 ```bash
+npm run check                     # astro check (types in .ts and .astro files)
+npm run lint                      # ESLint
 npm test                          # Vitest unit tests
+npm run coverage                  # Vitest with a coverage summary
 npx playwright install chromium   # first time only
 npm run build                     # e2e runs against ./dist
 npm run test:e2e                  # Playwright e2e

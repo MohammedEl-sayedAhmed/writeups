@@ -184,7 +184,7 @@ const urls = shareUrls({ title, url, description });
 					let saved = '';
 					try {
 						saved = localStorage.getItem('mastodonInstance') ?? '';
-					} catch (e) {}
+					} catch { /* storage unavailable */ }
 					const entered = window.prompt(
 						'Your Mastodon instance (e.g. mastodon.social):',
 						saved,
@@ -194,7 +194,7 @@ const urls = shareUrls({ title, url, description });
 					if (!clean) return;
 					try {
 						localStorage.setItem('mastodonInstance', clean);
-					} catch (e) {}
+					} catch { /* storage unavailable */ }
 					window.open(
 						`https://${clean}/share?text=${encodeURIComponent(`${title} ${url}`)}`,
 						'_blank',
@@ -211,7 +211,7 @@ const urls = shareUrls({ title, url, description });
 						await navigator.clipboard.writeText(url);
 						if (label) label.textContent = 'Copied';
 						btn.setAttribute('data-copied', 'true');
-					} catch (e) {
+					} catch {
 						if (label) label.textContent = 'Failed';
 					}
 					setTimeout(() => {

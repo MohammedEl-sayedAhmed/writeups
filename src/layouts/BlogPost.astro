@@ -249,7 +249,7 @@ const jsonLd = {
 								await navigator.clipboard.writeText(code);
 								btn.textContent = 'Copied!';
 								setTimeout(() => (btn.textContent = 'Copy'), 1500);
-							} catch (e) {
+							} catch {
 								btn.textContent = 'Failed';
 								setTimeout(() => (btn.textContent = 'Copy'), 1500);
 							}
@@ -269,7 +269,7 @@ const jsonLd = {
 					sizeButtons.forEach((b) => b.classList.toggle('active', b.dataset.fs === size));
 					try {
 						localStorage.setItem('fontSize', size);
-					} catch (e) {}
+					} catch { /* storage unavailable */ }
 				};
 				const currentSize = document.documentElement.getAttribute('data-font-size') ?? 'm';
 				sizeButtons.forEach((b) => b.classList.toggle('active', b.dataset.fs === currentSize));

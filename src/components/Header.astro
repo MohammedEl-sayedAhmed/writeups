@@ -191,7 +191,7 @@ import { SITE_TITLE } from '../consts';
 		root.setAttribute('data-theme', next);
 		try {
 			localStorage.setItem('theme', next);
-		} catch (e) {}
+		} catch { /* storage unavailable */ }
 		document.dispatchEvent(new CustomEvent('theme-change', { detail: { theme: next } }));
 	});
 </script>
