@@ -4,44 +4,14 @@ Source repository for a personal technical blog. Built with [Astro](https://astr
 
 ## Architecture
 
-<p align="center"><img src="docs/architecture.svg" width="100%" alt="writeups architecture"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/overview-dark.svg">
+    <img src="docs/diagrams/overview.svg" width="100%" alt="writeups architecture: the repository, Cloudflare Pages, GitHub Actions, and the outside services">
+  </picture>
+</p>
 
-Source of truth is markdown in `src/content/blog/`. A push to `main` fans out to parallel pipelines: Cloudflare Pages rebuilds the Astro site (including the satori/resvg per-post Open Graph images) and deploys it to `mammar.pages.dev`; `crosspost.yml` publishes or updates the dev.to copy via `sinedied/publish-devto` and opens an auto-merging PR — the dashed loop is that PR writing the dev.to article `id` back into the post's frontmatter so subsequent pushes update the same article instead of creating duplicates; `send-webmentions.yml` pings every outgoing link's webmention endpoint; `test.yml` runs the Vitest and Playwright suites as required checks that gate the auto-merge PR. `diagnose-devto.yml` is a manual-only diagnostic against the Forem API.
-
-<details>
-<summary>Mermaid fallback</summary>
-
-```mermaid
-flowchart LR
-    author["Author<br/>npm run dev / build"]
-    src["src/content/blog/*.md<br/>Zod-validated frontmatter"]
-    push["git push → main<br/>protected · linear history"]
-    cf["Cloudflare Pages<br/>Astro build (Node 22)<br/>satori + resvg OG images"]
-    cross["crosspost.yml<br/>working branch → auto-merge PR"]
-    test["test.yml — unit + e2e<br/>Vitest + Playwright"]
-    wm["send-webmentions.yml<br/>POST to outgoing-link endpoints"]
-    diag["diagnose-devto.yml<br/>manual workflow_dispatch only"]
-    site(("mammar.pages.dev"))
-    devto(("dev.to/mammar"))
-    ends(("webmention endpoints"))
-    forem(("dev.to Forem API"))
-
-    author -->|authors| src
-    src -->|commit| push
-    push -->|webhook deploy| cf
-    push -->|on push: blog| cross
-    push -->|on push: blog| wm
-    push -->|PR + push| test
-    cf -->|deploy| site
-    cross -->|POST/PUT| devto
-    cross -.->|PR writes dev.to id to frontmatter| src
-    test -.->|required checks| cross
-    wm -->|webmention| ends
-    diag -->|manual run| forem
-    devto -.->|canonical_url| site
-```
-
-</details>
+Posts are Markdown files in this repo. Cloudflare Pages builds and hosts the site. GitHub Actions run the tests, copy each post to dev.to, and send webmentions. [docs/architecture.md](docs/architecture.md) has the full picture: the publishing flow, the build, the browser features, and the workflows with their secrets.
 
 ## Features
 
@@ -90,7 +60,7 @@ What the site does, beyond rendering markdown:
 | `.github/workflows/diagnose-devto.yml` | Manual dev.to diagnostic |
 | `.github/scripts/swap-tags.py` | Swaps `tags` and `devto_tags` around the dev.to publish |
 | `scripts/diagnose-devto.py` | The script that `diagnose-devto.yml` runs |
-| `docs/` | Architecture diagram |
+| `docs/` | Architecture notes (`architecture.md`) and the diagrams in `docs/diagrams/` |
 | `public/` | Static files served as is |
 | `AGENTS.md` | Project context for coding agents |
 

@@ -13,7 +13,7 @@ webmentions.
 
 ## Architecture
 
-See [README.md](README.md#architecture) for the architecture diagram (SVG, with a Mermaid fallback). Source of truth = markdown in `src/content/blog/`. Push to `main` fans out to:
+See [docs/architecture.md](docs/architecture.md) for the full architecture, with diagrams. The SVGs in `docs/diagrams/` come from `scripts/diagrams.mjs`: edit the script, then run `npm run diagrams`. Do not edit the SVGs by hand. Source of truth = markdown in `src/content/blog/`. Push to `main` fans out to:
 
 - **Cloudflare Pages** → builds Astro → `mammar.pages.dev`. The build also runs **Pagefind** to index the site for client-side search.
 - **GitHub Actions:**

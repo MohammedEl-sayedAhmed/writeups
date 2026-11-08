@@ -12,7 +12,8 @@
     "astro": "astro",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "diagrams": "node scripts/diagrams.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "7.0.3",
