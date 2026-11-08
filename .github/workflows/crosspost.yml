@@ -8,7 +8,8 @@ name: Cross-post to dev.to
 # working branch back into main. Required status checks (unit, e2e) run
 # on the auto-PR the same way they would on any other PR.
 #
-# Required repo secret: CROSSPOST_PAT
+# Required repo secrets: DEVTO_TOKEN (the dev.to API key) and CROSSPOST_PAT.
+# CROSSPOST_PAT:
 #   A fine-grained PAT with `contents: write` + `pull-requests: write` on
 #   THIS repository. The default GITHUB_TOKEN cannot be used to open the
 #   PR because PRs opened by GITHUB_TOKEN do not trigger downstream
@@ -53,11 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      # Job-level permissions are deliberately narrow. The PR is opened
-      # using the PAT (not GITHUB_TOKEN), so this token mainly needs
-      # contents: read for checkout and contents: write for the working
-      # branch push. We do NOT grant pull-requests: write here because
-      # GITHUB_TOKEN does not open the PR.
+      # Job-level permissions are deliberately narrow. Checkout, every
+      # push and the PR all use the PAT, not GITHUB_TOKEN. We do NOT
+      # grant pull-requests: write here because GITHUB_TOKEN does not
+      # open the PR.
       contents: write
 
     steps:

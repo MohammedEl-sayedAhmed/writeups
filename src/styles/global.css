@@ -1,8 +1,8 @@
 /*
  * Design system for writeups.
  * Tokens first, then base styles, then small utilities.
- * Light is default; dark activates via [data-theme="dark"] on <html>
- * or (when no explicit pick is set) prefers-color-scheme: dark.
+ * Dark is default. Light is opt-in via [data-theme="light"] on <html>,
+ * set by the header toggle.
  */
 
 :root {

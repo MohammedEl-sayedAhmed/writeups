@@ -10,7 +10,7 @@ on:
       - 'src/content/blog/**'
 
 # Default-deny at workflow level. The job below grants nothing extra — this
-# workflow only makes outbound HTTPS POSTs to webmention endpoints.
+# workflow only fetches public pages and POSTs to webmention endpoints.
 permissions: {}
 
 concurrency:
