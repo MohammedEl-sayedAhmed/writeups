@@ -13,8 +13,8 @@
 <text x="206" y="94" font-size="11" font-weight="700" letter-spacing="0.8" fill="#59636e">GITHUB</text>
 </g>
 <g>
-<rect x="540" y="70" width="280" height="290" rx="14" fill="#fff4ec" stroke="#f2c9a7" stroke-width="1"/>
-<text x="556" y="94" font-size="11" font-weight="700" letter-spacing="0.8" fill="#9a4a10">CLOUDFLARE PAGES</text>
+<rect x="560" y="70" width="260" height="310" rx="14" fill="#fff4ec" stroke="#f2c9a7" stroke-width="1"/>
+<text x="576" y="94" font-size="11" font-weight="700" letter-spacing="0.8" fill="#9a4a10">CLOUDFLARE PAGES</text>
 </g>
 <g>
 <rect x="930" y="70" width="280" height="510" rx="14" fill="#f3f0ff" stroke="#d4c8f5" stroke-width="1"/>
@@ -23,27 +23,27 @@
 <path d="M120 148 L215 148" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 <rect x="130.5" y="138" width="74" height="20" rx="10" fill="#ffffff"/>
 <text x="167.5" y="152" text-anchor="middle" font-size="12" fill="#59636e">PR, merge</text>
-<path d="M455 148 L565 148" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-<rect x="453" y="138" width="114" height="20" rx="10" fill="#ffffff"/>
-<text x="510" y="152" text-anchor="middle" font-size="12" fill="#59636e">Git integration</text>
+<path d="M455 148 L575 148" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="458" y="122" width="114" height="20" rx="10" fill="#ffffff"/>
+<text x="515" y="136" text-anchor="middle" font-size="12" fill="#59636e">Git integration</text>
 <path d="M335 186 L335 470" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 <rect x="301.5" y="318" width="67" height="20" rx="10" fill="#ffffff"/>
 <text x="335" y="332" text-anchor="middle" font-size="12" fill="#59636e">push, PR</text>
-<path d="M680 186 L680 250" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-<rect x="653" y="208" width="54" height="20" rx="10" fill="#ffffff"/>
-<text x="680" y="222" text-anchor="middle" font-size="12" fill="#59636e">deploy</text>
-<path d="M680 326 L680 410" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-<rect x="643" y="358" width="74" height="20" rx="10" fill="#ffffff"/>
-<text x="680" y="372" text-anchor="middle" font-size="12" fill="#59636e">served to</text>
-<path d="M795 128 L960 128" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
-<rect x="820.5" y="118" width="114" height="20" rx="10" fill="#ffffff"/>
-<text x="877.5" y="132" text-anchor="middle" font-size="12" fill="#59636e">build: mentions</text>
-<path d="M795 168 L882 168 Q890 168 890 176 L890 206 Q890 214 898 214 L960 214" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
-<rect x="823.5" y="181" width="133" height="20" rx="10" fill="#ffffff"/>
-<text x="890" y="195" text-anchor="middle" font-size="12" fill="#59636e">build: article URL</text>
-<path d="M795 438 L1062 438 Q1070 438 1070 430 L1070 346" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
-<rect x="869" y="428" width="127" height="20" rx="10" fill="#ffffff"/>
-<text x="932.5" y="442" text-anchor="middle" font-size="12" fill="#59636e">browser: comments</text>
+<path d="M690 186 L690 250" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="663" y="208" width="54" height="20" rx="10" fill="#ffffff"/>
+<text x="690" y="222" text-anchor="middle" font-size="12" fill="#59636e">deploy</text>
+<path d="M690 326 L690 410" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+<rect x="653" y="384" width="74" height="20" rx="10" fill="#ffffff"/>
+<text x="690" y="398" text-anchor="middle" font-size="12" fill="#59636e">served to</text>
+<path d="M805 128 L960 128" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
+<rect x="825.5" y="118" width="114" height="20" rx="10" fill="#ffffff"/>
+<text x="882.5" y="132" text-anchor="middle" font-size="12" fill="#59636e">build: mentions</text>
+<path d="M805 168 L867 168 Q875 168 875 176 L875 206 Q875 214 883 214 L960 214" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
+<rect x="831.5" y="181" width="87" height="20" rx="10" fill="#ffffff"/>
+<text x="875" y="195" text-anchor="middle" font-size="12" fill="#59636e">article URL</text>
+<path d="M805 438 L1062 438 Q1070 438 1070 430 L1070 346" fill="none" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
+<rect x="874" y="428" width="127" height="20" rx="10" fill="#ffffff"/>
+<text x="937.5" y="442" text-anchor="middle" font-size="12" fill="#59636e">browser: comments</text>
 <path d="M455 512 L960 512" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 <rect x="647.5" y="502" width="120" height="20" rx="10" fill="#ffffff"/>
 <text x="707.5" y="516" text-anchor="middle" font-size="12" fill="#59636e">send webmentions</text>
@@ -66,18 +66,18 @@
 <text x="335" y="532" text-anchor="middle" font-size="12" fill="#59636e">send-webmentions.yml</text>
 </g>
 <g>
-<rect x="565" y="110" width="230" height="76" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
-<text x="680" y="145" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">Build</text>
-<text x="680" y="160" text-anchor="middle" font-size="12" fill="#59636e">Astro, Pagefind, OG images</text>
+<rect x="575" y="110" width="230" height="76" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="690" y="145" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">Build</text>
+<text x="690" y="160" text-anchor="middle" font-size="12" fill="#59636e">Astro, Pagefind, OG images</text>
 </g>
 <g>
-<rect x="565" y="250" width="230" height="76" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
-<text x="680" y="285" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">mammar.pages.dev</text>
-<text x="680" y="300" text-anchor="middle" font-size="12" fill="#59636e">production and branch previews</text>
+<rect x="575" y="250" width="230" height="76" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
+<text x="690" y="285" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">mammar.pages.dev</text>
+<text x="690" y="300" text-anchor="middle" font-size="12" fill="#59636e">production and branch previews</text>
 </g>
 <g>
-<rect x="565" y="410" width="230" height="56" rx="28" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.25"/>
-<text x="680" y="443" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">Reader</text>
+<rect x="575" y="410" width="230" height="56" rx="28" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.25"/>
+<text x="690" y="443" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">Reader</text>
 </g>
 <g>
 <rect x="960" y="100" width="220" height="56" rx="10" fill="#ffffff" stroke="#8c959f" stroke-width="1.25"/>
@@ -99,4 +99,5 @@
 <text x="1070" y="509" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2328">Linked sites</text>
 <text x="1070" y="524" text-anchor="middle" font-size="12" fill="#59636e">webmention endpoints</text>
 </g>
+<text x="30" y="630" font-size="12" fill="#59636e">Dashed lines: calls made while the site builds, or in the reader's browser.</text>
 </svg>

@@ -70,6 +70,8 @@ sequenceDiagram
     Author->>GH: Merge to main
     GH->>CF: Build and deploy production
     GH->>XP: Push touches a post
+    GH->>WM: Same push starts this workflow too
+    Note over WM: Wait 90 seconds for the deploy,<br/>send a webmention for each outgoing link
     Note over XP: Work branch crosspost/devto-RUN_ID,<br/>swap tags
     XP->>DT: Publish or update the article
     DT-->>XP: Article id
@@ -77,13 +79,11 @@ sequenceDiagram
     XP->>GH: Open write-back PR with auto-merge
     GH->>CI: Run unit and e2e on the write-back PR
     Note over GH: Auto-merge when checks pass
-    GH->>WM: Push touches a post
-    Note over WM: Wait 90 seconds for the deploy,<br/>send a webmention for each outgoing link
 ```
 
 - The write-back commit message starts with `chore(crosspost):`. `crosspost.yml` skips pushes with that prefix, so it does not loop.
 - The write-back PR carries the dev.to `id` and the `date` back to `main`. The next run then updates the same article.
-- `send-webmentions.yml` also starts on the write-back merge, because that merge touches a post.
+- `send-webmentions.yml` starts on the same push as `crosspost.yml`. It also starts again on the write-back merge, because that merge touches a post. `crosspost.yml` skips that second push.
 
 ## 3. The build
 
@@ -136,11 +136,12 @@ The site ships as static files. A few scripts add behavior on top.
 flowchart LR
     page["Static page"]
     page --> theme["Theme<br/>dark default, header toggle,<br/>saved in localStorage"]
+    page --> top["Scroll-to-top"]
     page --> search["Search<br/>Pagefind modal, Cmd/Ctrl-K"]
     page --> nav["View transitions<br/>ClientRouter"]
     page --> post["Post page"]
     post --> comments["Comments<br/>Giscus"]
-    post --> reading["TOC, reading progress,<br/>copy-code, scroll-to-top"]
+    post --> reading["TOC, reading progress,<br/>copy-code"]
     post --> social["Share sheet,<br/>related posts"]
 ```
 
@@ -154,7 +155,7 @@ All workflows are in `.github/workflows/`. Each workflow sets `permissions: {}` 
 | Workflow | Trigger | What it does | Secrets | Job permissions |
 |---|---|---|---|---|
 | `test.yml` | PR to `main`, push to `main` | `unit` runs Vitest. `e2e` builds the site and runs Playwright. | none | none |
-| `crosspost.yml` | Push to `main` that touches `src/content/blog/**`, or manual | Publishes or updates the post on dev.to. Opens a write-back PR with auto-merge. | `DEVTO_TOKEN`, `CROSSPOST_PAT` | `contents: write` |
+| `crosspost.yml` | Push to `main` that touches `src/content/blog/**`, or manual | Publishes or updates each post on dev.to. Opens a write-back PR with auto-merge. | `DEVTO_TOKEN`, `CROSSPOST_PAT` | `contents: write` |
 | `send-webmentions.yml` | Push to `main` that touches `src/content/blog/**` | Sends outgoing webmentions for each post. | none | none |
 | `diagnose-devto.yml` | Manual | Repeats one dev.to publish call and prints the response. | `DEVTO_TOKEN` | `contents: read` |
 
@@ -169,7 +170,13 @@ Other settings:
 These are tracked in the issues below.
 
 - Cross-post: the auto-merge step fails. Tracked in [#67](https://github.com/MohammedEl-sayedAhmed/writeups/issues/67).
-- Cross-post: `sinedied/publish-devto` is pinned to a tag that runs on Node 16. Tracked in [#68](https://github.com/MohammedEl-sayedAhmed/writeups/issues/68).
+- Cross-post: `sinedied/publish-devto` is pinned to the commit of the `v2` tag, whose `action.yml` declares `node16`. Tracked in [#68](https://github.com/MohammedEl-sayedAhmed/writeups/issues/68).
 - Astro is pinned at 7.1.1, which has a critical advisory. Tracked in [#70](https://github.com/MohammedEl-sayedAhmed/writeups/issues/70).
 - CI has no type check, no lint and no coverage report. Tracked in [#71](https://github.com/MohammedEl-sayedAhmed/writeups/issues/71).
 - The Giscus theme can follow the OS setting, so comments can show in the light theme on the dark site. Tracked in [#73](https://github.com/MohammedEl-sayedAhmed/writeups/issues/73).
+
+## Glossary
+
+- **Webmention**: a standard message that tells a site "I linked to your page". `send-webmentions.yml` sends them. webmention.io receives the ones for this site.
+- **Write-back PR**: the PR that `crosspost.yml` opens after it publishes. It carries the dev.to `id` and `date` back into the post files on `main`.
+- **Drift test**: the unit test in `tests/unit/diagrams.test.ts`. It fails when a file in `docs/diagrams/` differs from what `scripts/diagrams.mjs` generates. Run `npm run diagrams` to fix it.

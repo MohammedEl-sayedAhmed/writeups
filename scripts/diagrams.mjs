@@ -56,6 +56,7 @@ export const THEMES = {
 //
 // node:  id, x, y, w, h, title, sub (string or string[]), kind
 //        kind: 'node' (default), 'accent' (the repo), 'person', 'external'
+// notes: x, y, text (a small caption)
 // group: title, x, y, w, h, tone
 // edge:  from, to, label, dashed, route, labelSeg, labelDx
 //        an anchor is [nodeId, side, at?]; `at` is an absolute coordinate
@@ -67,29 +68,30 @@ const overview = {
 	height: 640,
 	groups: [
 		{ title: 'GITHUB', x: 190, y: 70, w: 290, h: 510, tone: 'github' },
-		{ title: 'CLOUDFLARE PAGES', x: 540, y: 70, w: 280, h: 290, tone: 'cloudflare' },
+		{ title: 'CLOUDFLARE PAGES', x: 560, y: 70, w: 260, h: 310, tone: 'cloudflare' },
 		{ title: 'EXTERNAL SERVICES', x: 930, y: 70, w: 280, h: 510, tone: 'external' },
 	],
 	nodes: [
 		{ id: 'author', x: 20, y: 120, w: 100, h: 56, title: 'Author', kind: 'person' },
 		{ id: 'repo', x: 215, y: 110, w: 240, h: 76, title: 'Repository', sub: 'posts in src/content/blog/', kind: 'accent' },
 		{ id: 'actions', x: 215, y: 470, w: 240, h: 84, title: 'GitHub Actions', sub: ['test.yml, crosspost.yml,', 'send-webmentions.yml'] },
-		{ id: 'build', x: 565, y: 110, w: 230, h: 76, title: 'Build', sub: 'Astro, Pagefind, OG images' },
-		{ id: 'host', x: 565, y: 250, w: 230, h: 76, title: 'mammar.pages.dev', sub: 'production and branch previews' },
-		{ id: 'reader', x: 565, y: 410, w: 230, h: 56, title: 'Reader', kind: 'person' },
+		{ id: 'build', x: 575, y: 110, w: 230, h: 76, title: 'Build', sub: 'Astro, Pagefind, OG images' },
+		{ id: 'host', x: 575, y: 250, w: 230, h: 76, title: 'mammar.pages.dev', sub: 'production and branch previews' },
+		{ id: 'reader', x: 575, y: 410, w: 230, h: 56, title: 'Reader', kind: 'person' },
 		{ id: 'wm', x: 960, y: 100, w: 220, h: 56, title: 'webmention.io', sub: 'received mentions', kind: 'external' },
 		{ id: 'devto', x: 960, y: 186, w: 220, h: 56, title: 'dev.to', sub: 'cross-posted articles', kind: 'external' },
 		{ id: 'giscus', x: 960, y: 290, w: 220, h: 56, title: 'Giscus', sub: 'comments', kind: 'external' },
 		{ id: 'targets', x: 960, y: 484, w: 220, h: 56, title: 'Linked sites', sub: 'webmention endpoints', kind: 'external' },
 	],
+	notes: [{ x: 30, y: 630, text: 'Dashed lines: calls made while the site builds, or in the reader\'s browser.' }],
 	edges: [
 		{ from: ['author', 'right'], to: ['repo', 'left'], label: 'PR, merge' },
-		{ from: ['repo', 'right'], to: ['build', 'left'], label: 'Git integration' },
+		{ from: ['repo', 'right'], to: ['build', 'left'], label: 'Git integration', labelDy: -16 },
 		{ from: ['repo', 'bottom'], to: ['actions', 'top'], label: 'push, PR' },
 		{ from: ['build', 'bottom'], to: ['host', 'top'], label: 'deploy' },
-		{ from: ['host', 'bottom'], to: ['reader', 'top'], label: 'served to' },
+		{ from: ['host', 'bottom'], to: ['reader', 'top'], label: 'served to', labelDy: 26 },
 		{ from: ['build', 'right', 128], to: ['wm', 'left', 128], dashed: true, label: 'build: mentions' },
-		{ from: ['build', 'right', 168], to: ['devto', 'left', 214], dashed: true, route: [[890, 168], [890, 214]], label: 'build: article URL', labelSeg: 1 },
+		{ from: ['build', 'right', 168], to: ['devto', 'left', 214], dashed: true, route: [[875, 168], [875, 214]], label: 'article URL', labelSeg: 1 },
 		{ from: ['reader', 'right'], to: ['giscus', 'bottom'], dashed: true, route: [[1070, 438]], label: 'browser: comments', labelSeg: 0 },
 		{ from: ['actions', 'right'], to: ['targets', 'left'], label: 'send webmentions' },
 		{ from: ['actions', 'bottom', 335], to: ['devto', 'right'], route: [[335, 608], [1240, 608], [1240, 214]], label: 'publish, update', labelSeg: 1 },
@@ -125,7 +127,7 @@ const publishFlow = {
 		{ from: ['build', 'right'], to: ['site', 'left'], label: 'deploy' },
 		{ from: ['publish', 'right'], to: ['devto', 'left'], label: 'POST or PUT' },
 		{ from: ['publish', 'bottom'], to: ['writeback', 'top'], label: 'id, date' },
-		{ from: ['writeback', 'left', 354], to: ['merge', 'bottom'], dashed: true, route: [[515, 354]], label: 'auto-merge', labelSeg: 0, labelDx: -20 },
+		{ from: ['writeback', 'left', 354], to: ['merge', 'bottom'], dashed: true, route: [[515, 354]], label: ['auto-merge', 'crosspost skips it'], labelSeg: 0, labelDx: -30 },
 		{ from: ['wmsend', 'right'], to: ['targets', 'left'], label: 'webmention' },
 	],
 };
@@ -235,8 +237,6 @@ function drawNode(n, t) {
 	} else if (kind === 'person') {
 		fill = t.personFill;
 		rx = n.h / 2;
-	} else if (kind === 'external') {
-		sw = 1.25;
 	}
 	const cx = n.x + n.w / 2;
 	const subs = n.sub === undefined ? [] : Array.isArray(n.sub) ? n.sub : [n.sub];
@@ -271,15 +271,20 @@ function drawEdge(e, nodes, t) {
 		const seg = e.labelSeg ?? longestSegment(pts);
 		const [mx, my] = segmentMid(pts, seg);
 		const x = mx + (e.labelDx ?? 0);
-		const w = textWidth(e.label, 12) + 14;
+		const lines = Array.isArray(e.label) ? e.label : [e.label];
 		const h = 20;
-		out += `<rect x="${num(x - w / 2)}" y="${num(my - h / 2)}" width="${num(w)}" height="${h}" rx="10" fill="${t.labelBg}"/>\n`;
-		out += `<text x="${num(x)}" y="${num(my + 4)}" text-anchor="middle" font-size="12" fill="${t.muted}">${esc(e.label)}</text>\n`;
+		const top = my + (e.labelDy ?? 0) - (lines.length * h) / 2;
+		lines.forEach((line, i) => {
+			const cy = top + i * h + h / 2;
+			const w = textWidth(line, 12) + 14;
+			out += `<rect x="${num(x - w / 2)}" y="${num(cy - h / 2)}" width="${num(w)}" height="${h}" rx="10" fill="${t.labelBg}"/>\n`;
+			out += `<text x="${num(x)}" y="${num(cy + 4)}" text-anchor="middle" font-size="12" fill="${t.muted}">${esc(line)}</text>\n`;
+		});
 	}
 	return out;
 }
 
-function render(name, def, themeName) {
+function render(def, themeName) {
 	const { spec, title, desc } = def;
 	const t = THEMES[themeName];
 	const nodes = new Map(spec.nodes.map((n) => [n.id, n]));
@@ -296,16 +301,20 @@ function render(name, def, themeName) {
 	for (const g of spec.groups) svg += drawGroup(g, t);
 	for (const e of spec.edges) svg += drawEdge(e, nodes, t);
 	for (const n of spec.nodes) svg += drawNode(n, t);
+	for (const n of spec.notes ?? []) svg += `<text x="${n.x}" y="${n.y}" font-size="12" fill="${t.muted}">${esc(n.text)}</text>\n`;
 	svg += `</svg>\n`;
 	return svg;
 }
 
 // Returns { 'overview.svg': '...', 'overview-dark.svg': '...', ... }.
+/**
+ * @returns {Record<string, string>} file name to SVG text
+ */
 export function generateDiagrams() {
 	const files = {};
 	for (const [name, def] of Object.entries(DIAGRAMS)) {
-		files[`${name}.svg`] = render(name, def, 'light');
-		files[`${name}-dark.svg`] = render(name, def, 'dark');
+		files[`${name}.svg`] = render(def, 'light');
+		files[`${name}-dark.svg`] = render(def, 'dark');
 	}
 	return files;
 }

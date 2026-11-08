@@ -35,8 +35,10 @@
 <rect x="746.5" y="283" width="67" height="20" rx="10" fill="#0d1117"/>
 <text x="780" y="297" text-anchor="middle" font-size="12" fill="#9198a1">id, date</text>
 <path d="M680 354 L523 354 Q515 354 515 346 L515 306" fill="none" stroke="#7d8590" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-soft)"/>
-<rect x="537.5" y="344" width="80" height="20" rx="10" fill="#0d1117"/>
-<text x="577.5" y="358" text-anchor="middle" font-size="12" fill="#9198a1">auto-merge</text>
+<rect x="527.5" y="334" width="80" height="20" rx="10" fill="#0d1117"/>
+<text x="567.5" y="348" text-anchor="middle" font-size="12" fill="#9198a1">auto-merge</text>
+<rect x="501" y="354" width="133" height="20" rx="10" fill="#0d1117"/>
+<text x="567.5" y="368" text-anchor="middle" font-size="12" fill="#9198a1">crosspost skips it</text>
 <path d="M880 500 L990 500" fill="none" stroke="#9198a1" stroke-width="1.5" marker-end="url(#arrow)"/>
 <rect x="895" y="490" width="80" height="20" rx="10" fill="#0d1117"/>
 <text x="935" y="504" text-anchor="middle" font-size="12" fill="#9198a1">webmention</text>
