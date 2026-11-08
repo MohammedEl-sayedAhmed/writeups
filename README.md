@@ -47,7 +47,7 @@ What the site does, beyond rendering markdown:
 | `src/content/blog/` | One markdown file per post |
 | `src/content.config.ts` | Frontmatter schema (Zod-validated at build time) |
 | `src/pages/` | Page templates: home, `about`, `blog/` index + `[...slug]` post template, `tags/` index + `[tag]` archive, `og/[...slug].png` build-time OG image, `rss.xml.js` feed |
-| `src/lib/` | Build-time helpers: dev.to URL lookup, related posts, share links, webmentions |
+| `src/lib/` | Build-time helpers: dev.to URL lookup, related posts, share links, webmentions, OG card layout |
 | `src/layouts/`, `src/components/` | Reusable view code (Header, Footer, BaseHead, TableOfContents, BlogPost layout, etc.) |
 | `src/styles/global.css` | Design tokens (colors, spacing, type scale) and prose styles |
 | `src/consts.ts` | Site title, description, author name + URL, social links, Giscus settings |
