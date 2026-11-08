@@ -79,7 +79,7 @@ npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwrigh
 
 The workflows are hardened — keep them that way:
 
-- Third-party actions pinned to commit SHAs (not tags), with inline version markers (`# vX.Y.Z`) that Dependabot reads. `publish-devto` is the exception: it is pinned to a commit on its `main` branch (`# main (PR 40, node24)`), because the Node 24 fix has no release tag. Dependabot will not update it; review any new SHA by hand.
+- Third-party actions pinned to commit SHAs (not tags), with inline version markers (`# vX.Y.Z`) that Dependabot reads. `publish-devto` is the exception: it is pinned to a commit on its `main` branch (`# main (PR 40, node24)`), because the Node 24 fix has no release tag. Dependabot can still open a PR that moves it to a newer `main` commit; review any new SHA by hand before you merge it, and update the marker comment.
 - Default-deny workflow permissions; least-privilege per job (e.g. `contents: write` only where needed).
 - Job timeouts + concurrency groups to prevent races.
 - `.github/dependabot.yml` auto-PRs weekly action + npm updates.
