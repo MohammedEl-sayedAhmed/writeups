@@ -23,6 +23,12 @@ updates:
     labels:
       - dependencies
       - npm
+    # TypeScript 7 is out, but @astrojs/check and typescript-eslint accept
+    # only up to 6.x. Skip TypeScript majors until both support the next one.
+    ignore:
+      - dependency-name: "typescript"
+        update-types:
+          - "version-update:semver-major"
     groups:
       # astro core and its first-party integrations are peer-coupled: a new
       # astro major requires the matching @astrojs/* major and vice versa
@@ -35,6 +41,27 @@ updates:
         patterns:
           - "astro"
           - "@astrojs/*"
+        update-types:
+          - major
+          - minor
+          - patch
+      # vitest and @vitest/coverage-v8 must stay on the same version, so
+      # their bumps, majors included, travel in one PR.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types:
+          - major
+          - minor
+          - patch
+      # ESLint and its plugins are peer-coupled in the same way.
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "eslint-plugin-astro"
         update-types:
           - major
           - minor

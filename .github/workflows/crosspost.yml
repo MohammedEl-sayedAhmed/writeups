@@ -183,9 +183,19 @@ jobs:
           # state in the log and the job summary, so a failure says why
           # (issue #67). Try up to 3 times: the PR's state can take a few
           # seconds to settle after it is opened.
+          # Annotation messages must escape %, CR and LF, so that a
+          # multi-line error stays in one annotation and no line of it
+          # can be read as a workflow command.
+          annotation_escape() {
+            local s="$1"
+            s="${s//'%'/'%25'}"
+            s="${s//$'\r'/'%0D'}"
+            s="${s//$'\n'/'%0A'}"
+            printf '%s' "$s"
+          }
           attempt=1
           until out="$(gh pr merge "$pr_url" --auto --squash --delete-branch 2>&1)"; do
-            echo "::warning::Enabling auto-merge failed (attempt ${attempt}): ${out}"
+            echo "::warning::Enabling auto-merge failed (attempt ${attempt}): $(annotation_escape "$out")"
             gh pr view "$pr_url" --json state,mergeable,mergeStateStatus,autoMergeRequest || true
             if [ "$attempt" -ge 3 ]; then
               {
@@ -199,10 +209,10 @@ jobs:
                 echo
                 echo "Merge the write-back PR by hand once unit and e2e pass."
               } >> "$GITHUB_STEP_SUMMARY"
-              echo "::error::Could not enable auto-merge on ${pr_url}: ${out}"
+              echo "::error::Could not enable auto-merge on ${pr_url}: $(annotation_escape "$out")"
               exit 1
             fi
             attempt=$((attempt + 1))
             sleep 20
           done
-          echo "Auto-merge enabled: ${out}"
+          echo "Auto-merge enabled${out:+: ${out}}"
