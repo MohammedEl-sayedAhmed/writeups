@@ -179,4 +179,30 @@ jobs:
             --title 'chore(crosspost): dev.to writeback + tag restore' \
             --body "Automated cross-post writeback opened by crosspost.yml run ${RUN_ID}. The dev.to article id (if newly published) has been written into the post frontmatter; rich tags and \`date\` have been restored after the swap.")"
           echo "Opened ${pr_url}"
-          gh pr merge "$pr_url" --auto --squash --delete-branch
+          # Enable auto-merge. Keep gh's error text and the PR's merge
+          # state in the log and the job summary, so a failure says why
+          # (issue #67). Try up to 3 times: the PR's state can take a few
+          # seconds to settle after it is opened.
+          attempt=1
+          until out="$(gh pr merge "$pr_url" --auto --squash --delete-branch 2>&1)"; do
+            echo "::warning::Enabling auto-merge failed (attempt ${attempt}): ${out}"
+            gh pr view "$pr_url" --json state,mergeable,mergeStateStatus,autoMergeRequest || true
+            if [ "$attempt" -ge 3 ]; then
+              {
+                echo "### Auto-merge was not enabled"
+                echo
+                echo "PR: ${pr_url}"
+                echo
+                echo '```'
+                echo "$out"
+                echo '```'
+                echo
+                echo "Merge the write-back PR by hand once unit and e2e pass."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Could not enable auto-merge on ${pr_url}: ${out}"
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            sleep 20
+          done
+          echo "Auto-merge enabled: ${out}"
