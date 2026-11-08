@@ -14,7 +14,7 @@ export default defineConfig({
 		trace: 'on-first-retry',
 	},
 	webServer: {
-		command: 'npm run preview',
+		command: 'npm run preview -- --ignore-lock',
 		url: 'http://localhost:4321',
 		reuseExistingServer: !CI,
 		timeout: 120_000,

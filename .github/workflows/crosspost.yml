@@ -55,10 +55,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       # Job-level permissions are deliberately narrow. Checkout, every
-      # push and the PR all use the PAT, not GITHUB_TOKEN. We do NOT
-      # grant pull-requests: write here because GITHUB_TOKEN does not
-      # open the PR.
-      contents: write
+      # push and the PR all use the PAT, not GITHUB_TOKEN, so
+      # GITHUB_TOKEN only needs read access.
+      contents: read
 
     steps:
       # 1) Gate on the two secrets the run depends on.
