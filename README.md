@@ -48,7 +48,7 @@ flowchart LR
 What the site does, beyond rendering markdown:
 
 - **Light and dark themes** — CSS-variable design system. Dark is the default. The header toggle switches to light. The choice persists in `localStorage`. No flash on load.
-- **Per-post Open Graph images** — auto-generated at build (`/og/<slug>.png`) via [satori](https://github.com/vercel/satori) + [@resvg/resvg-js](https://github.com/yisibl/resvg-js) using bundled Inter. Used for the `og:image` / `twitter:image` cards on dev.to, Twitter, LinkedIn, Slack, etc.
+- **Per-post Open Graph images** — auto-generated at build (`/og/<slug>.png`) via [satori](https://github.com/vercel/satori) + [@resvg/resvg-js](https://github.com/yisibl/resvg-js) using bundled Inter. Used for the `og:image` / `twitter:image` link previews when the site's URL is shared on X, LinkedIn, Slack, etc. The dev.to copy of a post does not use it.
 - **JSON-LD** — every post emits `BlogPosting` structured data (`@type`, `author`, `datePublished`, `mainEntityOfPage`, etc.) for richer search results.
 - **Tag archives** — frontmatter `tags` automatically drive `/tags/<slug>/` listing pages plus a `/tags/` index with counts. Tag chips on posts and the blog list are clickable.
 - **Reader affordances on post pages**:
@@ -162,7 +162,7 @@ Auto-deploys on every push to `main`. Build settings on Cloudflare:
 
 1. Skips with a warning if `DEVTO_TOKEN` or `CROSSPOST_PAT` is missing.
 2. Otherwise calls [`sinedied/publish-devto`](https://github.com/sinedied/publish-devto) (pinned to a commit SHA).
-3. On first publish of a post, the action writes the dev.to article `id` and `date` into the post's frontmatter on a per-run branch. The workflow then opens an auto-merge PR from that branch. The PR merges into `main` after `unit` and `e2e` pass. So far the auto-merge step has failed and the PR had to be merged by hand (#67), so check that it merged. Later pushes update the same dev.to article instead of creating duplicates. Do not edit `id` or `date` by hand.
+3. When the action publishes or updates a post, it writes the dev.to `date` into the post's frontmatter on a per-run branch, and on first publish also the article `id`. The workflow then opens an auto-merge PR from that branch. The PR merges into `main` after `unit` and `e2e` pass. So far the auto-merge step has failed and the PR had to be merged by hand (#67), so check that it merged. Later pushes update the same dev.to article instead of creating duplicates. Do not edit `id` or `date` by hand.
 
 **Setup (one-time):**
 
@@ -180,7 +180,7 @@ Hashnode cross-posting is not currently automated — their publish flow moved t
 
 | Hardening | Why |
 |---|---|
-| `permissions: {}` at workflow level + `contents: write` only on the job | Default-deny; least privilege |
+| `permissions: {}` at workflow level + `contents: read` on the job; all writes go through `CROSSPOST_PAT` | Default-deny; least privilege |
 | All third-party and official actions pinned to **commit SHA**, not tags | Prevents tag-retargeting / upstream-repo-compromise attacks |
 | [`.github/dependabot.yml`](.github/dependabot.yml) auto-PRs action and npm updates weekly | SHA-pinning doesn't strand us on stale, vulnerable versions |
 | `timeout-minutes: 10` on the job | Caps blast radius of any stuck or looping step |
