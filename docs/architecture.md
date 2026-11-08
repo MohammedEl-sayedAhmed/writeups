@@ -155,7 +155,7 @@ All workflows are in `.github/workflows/`. Each workflow sets `permissions: {}` 
 | Workflow | Trigger | What it does | Secrets | Job permissions |
 |---|---|---|---|---|
 | `test.yml` | PR to `main`, push to `main` | `unit` runs Vitest. `e2e` builds the site and runs Playwright. | none | none |
-| `crosspost.yml` | Push to `main` that touches `src/content/blog/**`, or manual | Publishes or updates each post on dev.to. Opens a write-back PR with auto-merge. | `DEVTO_TOKEN`, `CROSSPOST_PAT` | `contents: write` |
+| `crosspost.yml` | Push to `main` that touches `src/content/blog/**`, or manual | Publishes or updates each post on dev.to. Opens a write-back PR with auto-merge. | `DEVTO_TOKEN`, `CROSSPOST_PAT` | `contents: read` (every write uses `CROSSPOST_PAT`) |
 | `send-webmentions.yml` | Push to `main` that touches `src/content/blog/**` | Sends outgoing webmentions for each post. | none | none |
 | `diagnose-devto.yml` | Manual | Repeats one dev.to publish call and prints the response. | `DEVTO_TOKEN` | `contents: read` |
 
@@ -170,8 +170,6 @@ Other settings:
 These are tracked in the issues below.
 
 - Cross-post: the auto-merge step fails. Tracked in [#67](https://github.com/MohammedEl-sayedAhmed/writeups/issues/67).
-- Cross-post: `sinedied/publish-devto` is pinned to the commit of the `v2` tag, whose `action.yml` declares `node16`. Tracked in [#68](https://github.com/MohammedEl-sayedAhmed/writeups/issues/68).
-- Astro is pinned at 7.1.1, which has a critical advisory. Tracked in [#70](https://github.com/MohammedEl-sayedAhmed/writeups/issues/70).
 - CI has no type check, no lint and no coverage report. Tracked in [#71](https://github.com/MohammedEl-sayedAhmed/writeups/issues/71).
 - The Giscus theme can follow the OS setting, so comments can show in the light theme on the dark site. Tracked in [#73](https://github.com/MohammedEl-sayedAhmed/writeups/issues/73).
 
