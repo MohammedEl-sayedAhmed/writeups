@@ -1,6 +1,7 @@
 // @ts-check
 
 import mdx from '@astrojs/mdx';
+import { unified } from '@astrojs/markdown-remark';
 import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
@@ -12,16 +13,19 @@ export default defineConfig({
 	site: 'https://mammar.pages.dev',
 	integrations: [mdx(), sitemap()],
 	markdown: {
-		rehypePlugins: [
-			rehypeSlug,
-			[
-				rehypeAutolinkHeadings,
-				{
-					behavior: 'append',
-					properties: { className: ['heading-anchor'], ariaLabel: 'Link to this section' },
-					content: { type: 'text', value: '#' },
-				},
+		// The rehype plugins run on the unified processor, not the default one.
+		processor: unified({
+			rehypePlugins: [
+				rehypeSlug,
+				[
+					rehypeAutolinkHeadings,
+					{
+						behavior: 'append',
+						properties: { className: ['heading-anchor'], ariaLabel: 'Link to this section' },
+						content: { type: 'text', value: '#' },
+					},
+				],
 			],
-		],
+		}),
 	},
 });

@@ -154,7 +154,7 @@ Auto-deploys on every push to `main`. Build settings on Cloudflare:
 
 - Build command: `npm run build`
 - Output directory: `dist`
-- Node version: `22` (pinned via `.nvmrc`)
+- Node version: `22`, at least `22.23.4` (via `.nvmrc`; Astro 7.4 needs it)
 
 ### Cross-post — dev.to via GitHub Actions
 
