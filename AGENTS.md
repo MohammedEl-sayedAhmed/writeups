@@ -19,7 +19,7 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture, with
 - **GitHub Actions:**
   - `crosspost.yml` → publishes/updates the same post on dev.to via `sinedied/publish-devto`, then opens an auto-merge PR (`chore(crosspost): dev.to writeback + tag restore`) that writes the dev.to article `id` and `date` into the frontmatter. The PR merges after `unit` and `e2e` pass.
   - `send-webmentions.yml` → waits 90 seconds for the deploy, then runs `@remy/webmention` on every post. It fetches each live post and each link target, and posts to each target's own webmention endpoint. It does not check that a post is live. (webmention.io is only this site's receiving endpoint.)
-  - `test.yml` → CI on PRs and on pushes to `main`: vitest unit tests + Playwright e2e (search, share buttons, comments, view transitions, content integrity).
+  - `test.yml` → CI on PRs and on pushes to `main`: type check, lint, vitest unit tests with coverage + Playwright e2e (search, share buttons, comments, view transitions, content integrity).
   - `diagnose-devto.yml` → manual/diagnostic workflow for troubleshooting dev.to publishing.
 
 Branches other than `main` get **preview deployments** at `<commit>.mammar.pages.dev`; the cross-post workflow does *not* fire on them.
@@ -69,13 +69,16 @@ npm install      # first time only
 npm run dev      # http://localhost:4321
 npm run build    # astro build + Pagefind index → ./dist; run before pushing to verify schema
 npm run preview  # serves ./dist locally
+npm run check    # astro check: type errors fail
+npm run lint     # ESLint (eslint.config.js): lint errors fail
 npm test         # vitest unit tests
+npm run coverage # vitest with coverage summary (no threshold)
 npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwright install chromium` once — see the Toolchain notes above
 ```
 
 ## Testing
 
-- **Unit:** vitest (`npm test`). **E2e:** Playwright (`npm run test:e2e`), also run in CI by `test.yml` on PRs and on pushes to `main`.
+- **Unit:** vitest (`npm test`; `npm run coverage` adds a coverage summary). **Static checks:** `npm run check` and `npm run lint`. CI runs both in the `unit` job before the tests. **E2e:** Playwright (`npm run test:e2e`), also run in CI by `test.yml` on PRs and on pushes to `main`.
 - Keep e2e green before merging. The `webServer` command in `playwright.config.ts` must keep `--ignore-lock` (see *Toolchain*).
 
 ## Security posture of the workflows
