@@ -183,6 +183,7 @@ Hashnode cross-posting is not currently automated — their publish flow moved t
 | `permissions: {}` at workflow level + `contents: write` only on the job | Default-deny; least privilege |
 | All third-party and official actions pinned to **commit SHA**, not tags | Prevents tag-retargeting / upstream-repo-compromise attacks |
 | [`.github/dependabot.yml`](.github/dependabot.yml) auto-PRs action and npm updates weekly | SHA-pinning doesn't strand us on stale, vulnerable versions |
+| Dependabot alerts and security updates on (Settings → Advanced Security) | Known advisories in npm and Actions dependencies show on the Security tab, and fix PRs open without waiting for the weekly run |
 | `timeout-minutes: 10` on the job | Caps blast radius of any stuck or looping step |
 | `concurrency:` group with `cancel-in-progress: false` | Two pushes can't race; in-flight publishes finish before the next runs |
 | Secrets injected via `env:` and referenced as quoted shell vars, never inlined | Avoids shell-injection if a secret value ever contains special characters |
