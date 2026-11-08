@@ -83,9 +83,9 @@ npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwrigh
 The workflows are hardened — keep them that way:
 
 - Third-party actions pinned to commit SHAs (not tags), with inline version markers (`# vX.Y.Z`, or `# v2` for `publish-devto`) that Dependabot reads.
-- Default-deny workflow permissions; least-privilege per job (e.g. `contents: write` only where needed).
+- Default-deny workflow permissions; least-privilege per job (e.g. the cross-post job's `GITHUB_TOKEN` is read-only; its writes use `CROSSPOST_PAT`).
 - Job timeouts + concurrency groups to prevent races.
-- `.github/dependabot.yml` auto-PRs weekly action + npm updates.
+- `.github/dependabot.yml` auto-PRs weekly action + npm updates. Dependabot alerts and security updates are also on in the repo settings.
 
 Do not relax any of this. Pin every new third-party action to a SHA.
 
