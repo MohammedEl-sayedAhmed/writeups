@@ -31,17 +31,25 @@ describe('Comments', () => {
 			expect(match).not.toBeNull();
 			const listeners: Record<string, () => void> = {};
 			const attrs: Record<string, string> = {};
-			const mount = { dataset: {} as Record<string, string>, appendChild: (el: any) => Object.assign(attrs, el.attrs) };
+			type FakeScript = { attrs: Record<string, string>; setAttribute: (k: string, v: string) => void };
+			const mount = {
+				dataset: {} as Record<string, string>,
+				appendChild: (el: FakeScript) => Object.assign(attrs, el.attrs),
+			};
 			const doc = {
 				documentElement: { getAttribute: () => dataTheme },
 				addEventListener: (name: string, fn: () => void) => {
 					listeners[name] = fn;
 				},
 				querySelector: () => mount,
-				createElement: () => {
-					const el: any = { attrs: {} };
-					el.setAttribute = (k: string, v: string) => (el.attrs[k] = v);
-					return el;
+				createElement: (): FakeScript => {
+					const attrs: Record<string, string> = {};
+					return {
+						attrs,
+						setAttribute: (k: string, v: string) => {
+							attrs[k] = v;
+						},
+					};
 				},
 			};
 			class FakeEl {}
@@ -53,7 +61,7 @@ describe('Comments', () => {
 				'HTMLElement',
 				'HTMLIFrameElement',
 				'IntersectionObserver',
-				match![1].replace(/\bwindow\b/g, 'window'),
+				match![1],
 			)(
 				doc,
 				win,
