@@ -27,7 +27,10 @@ Branches other than `main` get **preview deployments** at `<commit>.mammar.pages
 ## Toolchain / versions
 
 - **Node 22** (`.nvmrc`).
-- **Astro is pinned EXACTLY to `7.1.1`** (no caret). `@astrojs/mdx` is pinned exactly too (`7.0.3`). Do **not** bump to 7.2.x casually: astro 7.2.x daemonises `astro preview`, which breaks the Playwright e2e `webServer` — fix the e2e harness before unpinning.
+- **Astro is pinned EXACTLY to `7.4.5`** (no caret). `@astrojs/mdx` is pinned exactly too (`7.0.3`), and so is `@astrojs/markdown-remark` (`7.3.6`). Bump them together and run unit, build, and e2e before you merge.
+- **Node `>=22.23.4`** is required by Astro 7.4.x. `.nvmrc` says `22`, so CI takes the newest 22.x.
+- **Markdown plugins:** `rehype-slug` and `rehype-autolink-headings` run on the `unified()` processor from `@astrojs/markdown-remark`, set in `astro.config.mjs`. Astro's default Markdown processor does not run rehype plugins.
+- **`astro preview` and agents:** Astro 7.2 and later start `astro preview` as a background process when a coding agent runs it. That makes the Playwright `webServer` exit early. The `webServer` command uses `--ignore-lock` so the server stays in the foreground.
 - **Search:** Pagefind (built into `npm run build`). **OG images:** generated at build time with `satori` + `@resvg/resvg-js`.
 
 ## Workflow rules
@@ -67,22 +70,22 @@ npm run dev      # http://localhost:4321
 npm run build    # astro build + Pagefind index → ./dist; run before pushing to verify schema
 npm run preview  # serves ./dist locally
 npm test         # vitest unit tests
-npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwright install chromium` once — see the astro 7.1.1 note above
+npm run test:e2e # Playwright e2e; run `npm run build` first, and `npx playwright install chromium` once — see the Toolchain notes above
 ```
 
 ## Testing
 
 - **Unit:** vitest (`npm test`). **E2e:** Playwright (`npm run test:e2e`), also run in CI by `test.yml` on PRs and on pushes to `main`.
-- Keep e2e green before merging. The astro-preview daemon caveat (see *Toolchain*) will break the e2e `webServer` if astro is unpinned to 7.2.x.
+- Keep e2e green before merging. The `webServer` command in `playwright.config.ts` must keep `--ignore-lock` (see *Toolchain*).
 
 ## Security posture of the workflows
 
 The workflows are hardened — keep them that way:
 
 - Third-party actions pinned to commit SHAs (not tags), with inline version markers (`# vX.Y.Z`, or `# v2` for `publish-devto`) that Dependabot reads.
-- Default-deny workflow permissions; least-privilege per job (e.g. `contents: write` only where needed).
+- Default-deny workflow permissions; least-privilege per job (e.g. the cross-post job's `GITHUB_TOKEN` is read-only; its writes use `CROSSPOST_PAT`).
 - Job timeouts + concurrency groups to prevent races.
-- `.github/dependabot.yml` auto-PRs weekly action + npm updates.
+- `.github/dependabot.yml` auto-PRs weekly action + npm updates. Dependabot alerts and security updates are also on in the repo settings.
 
 Do not relax any of this. Pin every new third-party action to a SHA.
 

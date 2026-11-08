@@ -1,6 +1,8 @@
 # Weekly version-update PRs for pinned GitHub Actions and npm packages.
 # Without this, SHA-pinning in workflows means we'd silently miss patches.
-# This file gives version updates only; Dependabot security updates are off.
+# This file sets the weekly version updates. Dependabot alerts and security
+# updates are turned on in the repo settings, and security-fix PRs arrive
+# outside this schedule.
 
 version: 2
 updates:
