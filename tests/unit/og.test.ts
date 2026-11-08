@@ -2,14 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { Resvg } from '@resvg/resvg-js';
 import { OG_HEIGHT, OG_PADDING, OG_WIDTH, renderOgSvg } from '../../src/lib/og';
 
+// About 250 characters: needs 6+ lines at 64px, so only the 3-line clamp keeps it on the canvas.
 const LONG_TITLE =
-	'Building Clipman — a clipboard manager for Wayland that respects you and keeps every secret out of the history';
+	'Building Clipman — a clipboard manager for Wayland that respects you and keeps every secret out of the history, with encrypted storage, per-app exclusion rules, a searchable pinned list, D-Bus activation and a GNOME Shell extension that never leaks to the compositor';
 const MANY_TAGS = ['linux', 'opensource', 'python', 'gnome', 'wayland', 'dbus', 'ci-cd', 'packaging'];
 
 /** Every box satori lays out is written as a mask <rect>; collect them all. */
 function boxes(svg: string) {
-	return [...svg.matchAll(/<mask id="satori_om-[^"]*"><rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)].map(
-		(m) => ({ x: +m[1], y: +m[2], w: +m[3], h: +m[4] }),
+	return [...svg.matchAll(/<mask id="satori_om-([^"]*)"><rect x="(-?[\d.]+)" y="(-?[\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)].map(
+		(m) => ({ id: m[1], x: +m[2], y: +m[3], w: +m[4], h: +m[5] }),
 	);
 }
 
@@ -44,9 +45,10 @@ describe('OG image layout', () => {
 	it('keeps the site label clear of the tags', async () => {
 		const svg = await renderOgSvg({ title: LONG_TITLE, tags: MANY_TAGS, dateLabel: 'May 22, 2026' });
 		const all = boxes(svg);
-		// Last two boxes in the meta row: the tags, then the site label.
-		const site = all[all.length - 1];
-		const tags = all[all.length - 2];
+		// Mask ids record the tree path: root > body (1) > meta row (1) > child n.
+		const tags = all.find((b) => b.id.endsWith('-1-1-2'))!;
+		const site = all.find((b) => b.id.endsWith('-1-1-3'))!;
+		expect(site).toBeDefined();
 		expect(tags.w).toBeGreaterThan(300);
 		expect(tags.x + tags.w).toBeLessThan(site.x);
 	});

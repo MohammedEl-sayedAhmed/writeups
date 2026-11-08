@@ -13,13 +13,13 @@ export interface OgInput {
 	dateLabel: string;
 }
 
-type Node = { type: string; props: { style?: Record<string, unknown>; children?: unknown } };
+type OgNode = { type: string; props: { style?: Record<string, unknown>; children?: unknown } };
 
 const el = (
 	type: string,
 	style: Record<string, unknown>,
 	children?: unknown,
-): Node => ({ type, props: { style, children } });
+): OgNode => ({ type, props: { style, children } });
 
 /**
  * Element tree for the OG card. satori 0.63 defaults to content-box sizing,
@@ -27,7 +27,7 @@ const el = (
  * 1200x630 and the content spills off the canvas. Inner boxes keep explicit
  * widths so the title wraps and the tags row can truncate.
  */
-export function buildOgTree({ title, tags, dateLabel }: OgInput): Node {
+export function buildOgTree({ title, tags, dateLabel }: OgInput): OgNode {
 	const inner = OG_WIDTH - OG_PADDING * 2;
 	const tagText = tags.join(' · ');
 
@@ -74,7 +74,8 @@ export function buildOgTree({ title, tags, dateLabel }: OgInput): Node {
 					el(
 						'div',
 						{
-							display: 'flex',
+							// lineClamp only applies to display: block boxes in satori.
+							display: 'block',
 							width: `${inner}px`,
 							marginBottom: '32px',
 							fontSize: '64px',
@@ -148,6 +149,7 @@ export async function renderOgSvg(input: OgInput): Promise<string> {
 		fs.readFile(fontFile(400)),
 		fs.readFile(fontFile(700)),
 	]);
+	// satori types its input as a React node; this plain object tree has the same shape.
 	return satori(buildOgTree(input) as never, {
 		width: OG_WIDTH,
 		height: OG_HEIGHT,
